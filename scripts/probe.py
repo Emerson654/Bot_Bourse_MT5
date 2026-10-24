@@ -25,9 +25,9 @@ START = datetime(2008, 1, 1, tzinfo=timezone.utc)
 def connect() -> None:
     ok = mt5.initialize(
         path=os.environ.get("MT5_PATH"),
-        login=int(os.environ["MT5_LOGIN"]),
-        password=os.environ["MT5_PASSWORD"],
-        server=os.environ["MT5_SERVER"],
+        login=int(os.environ["MT5_LOGIN"].strip()),
+        password=os.environ["MT5_PASSWORD"].strip(),
+        server=os.environ["MT5_SERVER"].strip(),
         timeout=120_000,
     )
     if not ok:

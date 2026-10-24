@@ -1,0 +1,32 @@
+name: Historique XAUUSD (Dukascopy)
+
+on:
+  workflow_dispatch:
+  push:
+    paths: [scripts/dukascopy.py, .github/workflows/data.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Téléchargement 2012 → hier
+        run: |
+          mkdir -p data
+          python scripts/dukascopy.py 2012 data/XAUUSD_M5_utc.csv.gz
+          python -c "import gzip;l=gzip.open('data/XAUUSD_M5_utc.csv.gz','rt').readlines();print(l[1],l[len(l)//2],l[-1])"
+          ls -la data
+      - name: Enregistrement dans le dépôt
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/XAUUSD_M5_utc.csv.gz
+          git commit -m "Historique XAUUSD M5 (Dukascopy)" || echo "rien à enregistrer"
+          git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"

@@ -22,7 +22,18 @@ TIMEFRAMES = {
 START = datetime(2008, 1, 1, tzinfo=UTC)
 
 
+def diagnose() -> None:
+    """Contrôle de forme des secrets, sans jamais afficher leur valeur."""
+    lg, pw, sv = (os.environ.get(k, "") for k in ("MT5_LOGIN", "MT5_PASSWORD", "MT5_SERVER"))
+    print(f"login : {len(lg.strip())} caractères, uniquement des chiffres : {lg.strip().isdigit()}, "
+          f"espaces autour : {lg != lg.strip()}")
+    print(f"mot de passe : renseigné : {bool(pw)}, espaces autour : {pw != pw.strip()}, "
+          f"guillemets : {pw.strip()[:1] in '\"\'' and bool(pw.strip())}")
+    print(f"serveur = « MetaQuotes-Demo » exactement : {sv.strip() == 'MetaQuotes-Demo'}")
+
+
 def connect() -> None:
+    diagnose()
     ok = mt5.initialize(
         path=os.environ.get("MT5_PATH"),
         login=int(os.environ["MT5_LOGIN"].strip()),

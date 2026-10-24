@@ -35,13 +35,9 @@ log = logging.getLogger("bot")
 
 
 def connect_mt5():
-    import MetaTrader5 as mt5
+    from bot.mt5_setup import connect
 
-    ok = mt5.initialize(path=os.environ.get("MT5_PATH"), login=int(os.environ["MT5_LOGIN"].strip()),
-                        password=os.environ["MT5_PASSWORD"].strip(), server=os.environ["MT5_SERVER"].strip(),
-                        timeout=120_000, portable=True)
-    if not ok:
-        sys.exit(f"Connexion MT5 impossible (code {mt5.last_error()[0]})")
+    mt5 = connect()
     if not mt5.symbol_select(SYMBOL, True):
         sys.exit(f"Symbole {SYMBOL} indisponible")
     return mt5

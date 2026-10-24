@@ -14,6 +14,9 @@ from datetime import UTC, datetime, timedelta
 
 import MetaTrader5 as mt5
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from bot import mt5_setup as setup  # noqa: E402
+
 SYMBOL_CANDIDATES = ("XAUUSD", "GOLD", "XAUUSD.", "XAUUSDm")
 TIMEFRAMES = {
     "M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15,
@@ -34,21 +37,14 @@ def diagnose() -> None:
 
 def connect() -> None:
     diagnose()
-    ok = mt5.initialize(
-        path=os.environ.get("MT5_PATH"),
-        login=int(os.environ["MT5_LOGIN"].strip()),
-        password=os.environ["MT5_PASSWORD"].strip(),
-        server=os.environ["MT5_SERVER"].strip(),
-        timeout=120_000,
-        portable=True,
-    )
-    if not ok:
-        sys.exit(f"Connexion MT5 impossible : {mt5.last_error()}")
+    global mt5
+    mt5 = setup.connect()
     acc = mt5.account_info()
     # Seulement des infos non sensibles
     print(f"Connecté. Devise du compte : {acc.currency}, levier 1:{acc.leverage}, "
           f"mode {'hedge' if acc.margin_mode == mt5.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING else 'netting'}, "
-          f"trading autorisé : {acc.trade_allowed}, algo autorisé : {mt5.terminal_info().trade_allowed}")
+          f"trading autorisé : {acc.trade_allowed}, algo autorisé : {mt5.terminal_info().trade_allowed}, "
+          f"bougies max : {mt5.terminal_info().maxbars}")
 
 
 def find_symbol() -> str:

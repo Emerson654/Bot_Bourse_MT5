@@ -59,6 +59,10 @@ class Genome:
     cooldown: int
     short: int
     news: int
+    # Risque selon la conviction (v4) : risque = lo + (hi − lo) × force^pow, force = (|score| − seuil)/(1 − seuil)
+    risk_lo: float = 0.01
+    risk_hi: float = 0.01
+    risk_pow: float = 1.0
 
 
 # ---------------------------------------------------------------------------------------------

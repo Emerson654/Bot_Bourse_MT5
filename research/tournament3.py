@@ -27,11 +27,32 @@ import numpy as np
 
 import research.tournament as T
 from research.sim3 import simulate
-from research.tournament import Genome, _ema_smooth, crossover, mutate, random_genome
+from research.tournament import Genome, _ema_smooth, crossover
+from research.tournament import mutate as _mutate
+from research.tournament import random_genome as _random_genome
 
 T.TSTOPS = (0, 6, 12, 24, 48, 72, 120)  # en bougies H1 (0 = pas de stop temporel)
 MAX_DD = 0.15
+RISKS = (0.0025, 0.005, 0.0075, 0.01, 0.015, 0.02, 0.025)  # risque par trade possible (0,25 % → 2,5 %)
 _G: dict = {}
+
+
+def random_genome(rng: random.Random, pool: list[int]) -> Genome:
+    lo = rng.choice(RISKS[:4])
+    return replace(_random_genome(rng, pool), risk_lo=lo, risk_hi=rng.choice([r for r in RISKS if r >= lo]),
+                   risk_pow=rng.choice([0.5, 1.0, 2.0]))
+
+
+def mutate(g: Genome, rng: random.Random, pool: list[int], rate: float = 0.3) -> Genome:
+    g = _mutate(g, rng, pool, rate)
+    lo, hi, pw = g.risk_lo, g.risk_hi, g.risk_pow
+    if rng.random() < rate:
+        lo = rng.choice(RISKS[:4])
+    if rng.random() < rate:
+        hi = rng.choice(RISKS)
+    if rng.random() < rate / 2:
+        pw = rng.choice([0.5, 1.0, 2.0])
+    return replace(g, risk_lo=min(lo, hi), risk_hi=max(lo, hi), risk_pow=pw)
 
 
 def _init(cache: str) -> None:
@@ -57,7 +78,8 @@ def run_asset(A: dict, V: np.ndarray, g: Genome, a: int, b: int):
     sl = slice(a, b)
     return simulate(A["o"][sl], A["h"][sl], A["lo"][sl], A["c"][sl], A["spread"][sl], A["atr"][sl], A["minute"][sl],
                     A["day"][sl], A["weekday"][sl], s, g.entry, g.exit, g.stop_k, g.tp_r, g.tstop, bool(g.short),
-                    A["slip"], A["swap_long"], A["swap_short"], A["triple_wd"])
+                    A["slip"], A["swap_long"], A["swap_short"], A["triple_wd"],
+                    g.risk_lo, g.risk_hi, g.risk_pow)
 
 
 def bounds(A: dict, start: str, end: str) -> tuple[int, int]:
@@ -106,10 +128,14 @@ def metrics(p: dict) -> dict:
 
 
 def fitness_of(m: dict) -> float:
-    """Sharpe du portefeuille − pénalités (drawdown > 15 %, profit factor < 1, trop peu de trades)."""
+    """Sharpe + rendement du portefeuille − pénalités (drawdown > 15 %, profit factor < 1, trop peu de trades).
+
+    Le terme de rendement (3 × CAGR) pousse à miser plus quand c'est rentable ; la pénalité de drawdown,
+    forte au-delà de 15 %, l'empêche de jouer le compte.
+    """
     if m["trades"] < 30:
         return -9.0
-    f = m["sharpe"]
+    f = m["sharpe"] + 3 * m["cagr"]
     f -= max(0.0, -MAX_DD - m["max_dd"]) * 10
     f -= max(0.0, 1.0 - m["pf"]) * 2
     f -= max(0.0, 0.1 - m["tpd"]) * 5  # moins d'un trade tous les 10 jours : trop peu pour juger

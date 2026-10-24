@@ -6,7 +6,7 @@
 - achat au ask (bid + spread), vente au bid, glissement à chaque exécution ;
 - swap facturé à chaque nuit passée (triple la nuit indiquée par le courtier) ;
 - vendredi : tout est fermé à la dernière décision de la session (pas de position le week-end) ;
-- risque 1 % du capital par trade (taille = risque / distance du stop), levier plafonné.
+- risque variable selon la conviction du signal (taille = risque / distance du stop), levier plafonné.
 """
 
 from __future__ import annotations
@@ -14,16 +14,19 @@ from __future__ import annotations
 import numpy as np
 from numba import njit
 
-RISK, MAX_LEV = 0.01, 20.0
+MAX_LEV = 20.0
+RISK_CAP = 0.025  # garde-fou : jamais plus de 2,5 % du capital risqué sur un trade
 FIRST_OPEN, LAST_OPEN = 12 * 60, 17 * 60  # ouverture de la bougie suivante, en minutes Paris
 
 
 @njit(cache=True)
 def simulate(o, h, lo, c, spread, atr, minute, day, weekday, score, entry, exit_, stop_k, tp_r, tstop,
-             allow_short, slip, swap_long, swap_short, triple_wd):
+             allow_short, slip, swap_long, swap_short, triple_wd, risk_lo, risk_hi, risk_pow):
     """Retourne (equity par bougie, trades (n, 6) = [i_entrée, i_sortie, sens, R, rendement, raison]).
 
     Raisons : 0 stop, 1 TP, 2 signal inverse, 3 stop temporel, 4 vendredi soir.
+    Risque du trade = risk_lo + (risk_hi − risk_lo) × force^risk_pow, force = (|score| − entry)/(1 − entry) ∈ [0, 1] :
+    plus les votants sont d'accord, plus la mise est forte (plafonnée à RISK_CAP).
     swap_* = coût (ou gain) en prix par unité et par nuit ; triple_wd = jour (0 = lundi) du swap triple.
     """
     n = len(c)
@@ -85,7 +88,9 @@ def simulate(o, h, lo, c, spread, atr, minute, day, weekday, score, entry, exit_
                 ep = (o[i + 1] + spread[i + 1] if d == 1 else o[i + 1]) + d * slip
                 sl = ep - d * dist
                 tp = ep + d * tp_r * dist
-                size = min(RISK / dist, MAX_LEV / ep)
+                force = min(1.0, max(0.0, (abs(s) - entry) / max(1e-9, 1.0 - entry)))
+                risk = min(RISK_CAP, risk_lo + (risk_hi - risk_lo) * force ** risk_pow)
+                size = min(risk / dist, MAX_LEV / ep)
                 pos = d
                 i_in = i + 1
     eq[n - 1] = equity

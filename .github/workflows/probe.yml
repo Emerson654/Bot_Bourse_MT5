@@ -5,6 +5,9 @@ on:
   push:
     paths: [scripts/probe.py, scripts/install_mt5.ps1, .github/workflows/probe.yml]
 
+permissions:
+  contents: write
+
 jobs:
   probe:
     runs-on: windows-latest
@@ -30,3 +33,12 @@ jobs:
           name: historique-xauusd
           path: data/*.csv.gz
           retention-days: 30
+      - name: Enregistrement de l'historique M5 et H1 dans le dépôt
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p data/mt5 && cp data/XAUUSD_M5.csv.gz data/XAUUSD_H1.csv.gz data/mt5/
+          git add data/mt5
+          git commit -qm "Historique XAUUSD MetaQuotes-Demo (M5, H1)" || exit 0
+          git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin "HEAD:${GITHUB_REF_NAME}"

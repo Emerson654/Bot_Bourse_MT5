@@ -5,7 +5,7 @@ on:
     inputs:
       symbols:
         description: "Actifs (séparés par des espaces)"
-        default: "XAUUSD XAGUSD EURUSD GBPUSD USDJPY AUDUSD USDCHF US500 SP500 NAS100 USTEC DE40 GER40"
+        default: "XAUUSD XAGUSD XPTUSD XPDUSD COPPER EURUSD GBPUSD USDJPY AUDUSD USDCHF USDCAD NZDUSD EURJPY GBPJPY EURGBP AUDJPY EURCHF EURAUD CADJPY AUDNZD US500 US30 US2000 DE40 UK100 FRA40 JPN225 AUS200 EUSTX50 HK50"
   push:
     paths: [scripts/fetch_history.py, .github/workflows/history.yml]
 
@@ -30,7 +30,7 @@ jobs:
           MT5_LOGIN: ${{ secrets.MT5_LOGIN }}
           MT5_PASSWORD: ${{ secrets.MT5_PASSWORD }}
           MT5_SERVER: ${{ secrets.MT5_SERVER }}
-        run: python scripts/fetch_history.py data/mt5 --m5 ${{ inputs.symbols || 'XAUUSD XAGUSD EURUSD GBPUSD USDJPY AUDUSD USDCHF US500 SP500 NAS100 USTEC DE40 GER40' }}
+        run: python scripts/fetch_history.py data/mt5 --m5 ${{ inputs.symbols || 'XAUUSD XAGUSD XPTUSD XPDUSD COPPER EURUSD GBPUSD USDJPY AUDUSD USDCHF USDCAD NZDUSD EURJPY GBPJPY EURGBP AUDJPY EURCHF EURAUD CADJPY AUDNZD US500 US30 US2000 DE40 UK100 FRA40 JPN225 AUS200 EUSTX50 HK50' }}
       - name: Enregistrement dans le dépôt
         shell: bash
         run: |

@@ -78,8 +78,10 @@ def main() -> None:
     os.makedirs(out_dir, exist_ok=True)
     mt5 = mt5_setup.connect()
     list_groups(mt5)
-    specs = {s: sp for s in symbols if (sp := fetch(mt5, s, out_dir, with_m5))}
-    with open(os.path.join(out_dir, "specs.json"), "w") as fh:
+    path = os.path.join(out_dir, "specs.json")
+    specs = json.load(open(path)) if os.path.exists(path) else {}  # on complète les actifs déjà téléchargés
+    specs.update({s: sp for s in symbols if (sp := fetch(mt5, s, out_dir, with_m5))})
+    with open(path, "w") as fh:
         json.dump(specs, fh, indent=1)
     mt5.shutdown()
 

@@ -49,7 +49,11 @@ def score_of(V: np.ndarray, g: Genome) -> np.ndarray:
 
 
 def run_asset(A: dict, V: np.ndarray, g: Genome, a: int, b: int):
-    s = score_of(V[a:b], g)
+    """V ne contient que les bougies de décision (A["dec"]) : le score lissé y est calculé puis replacé."""
+    dec = A["dec"]
+    da, db = np.searchsorted(dec, a), np.searchsorted(dec, b)
+    s = np.zeros(b - a)
+    s[dec[da:db] - a] = score_of(V[da:db], g)
     sl = slice(a, b)
     return simulate(A["o"][sl], A["h"][sl], A["lo"][sl], A["c"][sl], A["spread"][sl], A["atr"][sl], A["minute"][sl],
                     A["day"][sl], A["weekday"][sl], s, g.entry, g.exit, g.stop_k, g.tp_r, g.tstop, bool(g.short),

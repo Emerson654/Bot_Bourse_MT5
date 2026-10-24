@@ -10,7 +10,7 @@ import csv
 import gzip
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import MetaTrader5 as mt5
 
@@ -19,7 +19,7 @@ TIMEFRAMES = {
     "M1": mt5.TIMEFRAME_M1, "M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15,
     "H1": mt5.TIMEFRAME_H1, "H4": mt5.TIMEFRAME_H4, "D1": mt5.TIMEFRAME_D1,
 }
-START = datetime(2008, 1, 1, tzinfo=timezone.utc)
+START = datetime(2008, 1, 1, tzinfo=UTC)
 
 
 def connect() -> None:
@@ -61,12 +61,12 @@ def print_specs(sym: str) -> None:
     if tick:
         p = mt5.order_calc_profit(mt5.ORDER_TYPE_BUY, sym, 1.0, tick.ask, tick.ask + 1.0)
         print(f"1 lot, +1.00 de prix = {p} (devise du compte) ; heure serveur du dernier tick : "
-              f"{datetime.fromtimestamp(tick.time, timezone.utc):%Y-%m-%d %H:%M}")
+              f"{datetime.fromtimestamp(tick.time, UTC):%Y-%m-%d %H:%M}")
 
 
 def download(sym: str, name: str, tf: int, out_dir: str) -> None:
     """Télécharge par tranches de 30 jours (contourne la limite de bougies par requête)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows: dict[int, tuple] = {}
     t = START
     while t < now:
@@ -86,8 +86,8 @@ def download(sym: str, name: str, tf: int, out_dir: str) -> None:
         w = csv.writer(fh)
         w.writerow(["time", "open", "high", "low", "close", "tick_volume", "spread"])
         w.writerows(rows[k] for k in keys)
-    first = datetime.fromtimestamp(keys[0], timezone.utc)
-    last = datetime.fromtimestamp(keys[-1], timezone.utc)
+    first = datetime.fromtimestamp(keys[0], UTC)
+    last = datetime.fromtimestamp(keys[-1], UTC)
     print(f"{name} : {len(keys)} bougies du {first:%Y-%m-%d} au {last:%Y-%m-%d %H:%M}")
 
 

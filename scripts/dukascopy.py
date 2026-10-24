@@ -16,7 +16,7 @@ import sys
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 URL = "https://datafeed.dukascopy.com/datafeed/XAUUSD/{y}/{m:02d}/{d:02d}/{side}_candles_min_1.bi5"
 SCALE = 1000.0
@@ -36,7 +36,7 @@ def fetch_day(day: date, side: str) -> list[tuple[int, float, float, float, floa
     if not raw:
         return []
     data = lzma.decompress(raw)
-    base = int(datetime(day.year, day.month, day.day, tzinfo=timezone.utc).timestamp())
+    base = int(datetime(day.year, day.month, day.day, tzinfo=UTC).timestamp())
     out = []
     for off in range(0, len(data), 24):
         t, o, c, lo, h, v = struct.unpack(">5if", data[off:off + 24])
@@ -67,7 +67,7 @@ def to_m5(rows: list[tuple]) -> list[tuple]:
 
 def main() -> None:
     start_year, path = int(sys.argv[1]), sys.argv[2]
-    d0, d1 = date(start_year, 1, 1), datetime.now(timezone.utc).date() - timedelta(days=1)
+    d0, d1 = date(start_year, 1, 1), datetime.now(UTC).date() - timedelta(days=1)
     days = [d0 + timedelta(days=i) for i in range((d1 - d0).days + 1) if (d0 + timedelta(days=i)).weekday() != 5]
     rows: list[tuple] = []
     with ThreadPoolExecutor(16) as ex:
@@ -80,8 +80,8 @@ def main() -> None:
         w = csv.writer(fh)
         w.writerow(["time_utc", "open", "high", "low", "close", "spread"])
         w.writerows(m5)
-    print(f"{len(m5)} bougies M5 du {datetime.fromtimestamp(m5[0][0], timezone.utc):%Y-%m-%d} "
-          f"au {datetime.fromtimestamp(m5[-1][0], timezone.utc):%Y-%m-%d}")
+    print(f"{len(m5)} bougies M5 du {datetime.fromtimestamp(m5[0][0], UTC):%Y-%m-%d} "
+          f"au {datetime.fromtimestamp(m5[-1][0], UTC):%Y-%m-%d}")
 
 
 if __name__ == "__main__":

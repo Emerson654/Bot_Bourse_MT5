@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import csv
 import gzip
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -22,25 +22,27 @@ PARIS = ZoneInfo("Europe/Paris")
 
 def server_to_utc(ts: int) -> datetime:
     """Horodatage serveur (secondes, faussement « UTC ») → datetime UTC réel."""
-    naive_ny = datetime.fromtimestamp(ts, timezone.utc).replace(tzinfo=None) - timedelta(hours=7)
-    return naive_ny.replace(tzinfo=NY).astimezone(timezone.utc)
+    naive_ny = datetime.fromtimestamp(ts, UTC).replace(tzinfo=None) - timedelta(hours=7)
+    return naive_ny.replace(tzinfo=NY).astimezone(UTC)
 
 
 def load_m5(path: str) -> tuple[Bars, np.ndarray]:
     """Retourne les bougies et les horodatages UTC (datetime64[s])."""
     with gzip.open(path, "rt") as fh:
         rows = list(csv.DictReader(fh))
-    ts = np.array([int(r["time"]) for r in rows])
     o, h, lo, c = (np.array([float(r[k]) for r in rows]) for k in ("open", "high", "low", "close"))
-    spread_pts = np.array([float(r["spread"]) for r in rows])
-    utc = [server_to_utc(t) for t in ts]
+    if "time_utc" in rows[0]:  # Dukascopy : déjà en UTC, spread en prix
+        utc = [datetime.fromtimestamp(int(r["time_utc"]), UTC) for r in rows]
+        spread = np.array([float(r["spread"]) for r in rows])
+    else:  # export MT5 : heure serveur, spread en points
+        utc = [server_to_utc(int(r["time"])) for r in rows]
+        spread = np.array([float(r["spread"]) for r in rows]) * (0.01 if np.median(c) > 100 else 0.0001)
     paris = [u.astimezone(PARIS) for u in utc]
     minute = np.array([p.hour * 60 + p.minute for p in paris])
     weekday = np.array([p.weekday() for p in paris])
     # Jour de session = date de Paris (la session 12h-18h est entièrement dans la même date)
     day = np.array([p.toordinal() for p in paris])
-    point = 0.01 if np.median(c) > 100 else 0.0001
-    bars = Bars(o, h, lo, c, spread_pts * point, minute, day, weekday)
+    bars = Bars(o, h, lo, c, spread, minute, day, weekday)
     return bars, np.array([u.replace(tzinfo=None) for u in utc], dtype="datetime64[s]")
 
 

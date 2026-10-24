@@ -1,0 +1,76 @@
+name: Session live (démo)
+
+# 11h55 heure de Paris, du lundi au vendredi. Le cron GitHub est en UTC : une ligne pour l'heure
+# d'été (UTC+2), une pour l'heure d'hiver (UTC+1) ; la mauvaise s'arrête aussitôt.
+on:
+  schedule:
+    - cron: "55 9 * * 1-5"
+    - cron: "55 10 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live
+  cancel-in-progress: false
+
+jobs:
+  session:
+    runs-on: windows-latest
+    timeout-minutes: 358
+    steps:
+      - name: Bon créneau (été/hiver) ?
+        id: gate
+        shell: python
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          import os
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          off = datetime.now(ZoneInfo("Europe/Paris")).utcoffset().total_seconds() / 3600
+          s = os.environ.get("SCHEDULE", "")
+          ok = not s or (s.startswith("55 9 ") and off == 2) or (s.startswith("55 10 ") and off == 1)
+          open(os.environ["GITHUB_OUTPUT"], "a").write(f"run={'true' if ok else 'false'}\n")
+          print("session lancée" if ok else "mauvais créneau horaire : arrêt")
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          python-version: "3.12"
+      - name: Installation de MetaTrader 5
+        if: steps.gate.outputs.run == 'true'
+        shell: pwsh
+        run: ./scripts/install_mt5.ps1
+      - name: Dépendances
+        if: steps.gate.outputs.run == 'true'
+        run: pip install numpy MetaTrader5
+      - name: Page de statut (branche status)
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        run: |
+          mkdir -p status_site && cp docs/index.html status_site/
+          cd status_site && git init -q && git checkout -q -b status
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          echo '{"etat": "démarrage"}' > status.json
+          git add -A && git commit -qm statut && git push -q -f origin HEAD:status
+      - name: Bot
+        if: steps.gate.outputs.run == 'true'
+        env:
+          MT5_LOGIN: ${{ secrets.MT5_LOGIN }}
+          MT5_PASSWORD: ${{ secrets.MT5_PASSWORD }}
+          MT5_SERVER: ${{ secrets.MT5_SERVER }}
+        run: python -m bot.main --publish
+      - name: Journal des trades
+        if: always() && steps.gate.outputs.run == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add journal 2>/dev/null || exit 0
+          git commit -qm "Journal de la session du $(date +%F)" || exit 0
+          git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin "HEAD:${GITHUB_REF_NAME}"

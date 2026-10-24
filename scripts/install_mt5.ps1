@@ -8,5 +8,18 @@ for ($i = 0; $i -lt 60 -and -not (Test-Path $exe); $i++) { Start-Sleep 5 }
 if (-not (Test-Path $exe)) { throw "terminal64.exe introuvable après 5 min" }
 Start-Sleep 20  # fin de copie des fichiers annexes
 Get-Process | Where-Object { $_.Name -like "terminal64*" -or $_.Name -like "mt5setup*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+# Mode portable : les réglages sont lus dans le dossier d'installation.
+# Experts.Enabled = bouton « Algo Trading » activé (sinon order_send est refusé) ;
+# Charts.MaxBars = historique illimité (sinon 100 000 bougies maximum).
+$cfg = "C:\Program Files\MetaTrader 5\Config"
+New-Item -ItemType Directory -Force -Path $cfg | Out-Null
+@"
+[Experts]
+Enabled=1
+AllowLiveTrading=1
+AllowDllImport=0
+[Charts]
+MaxBars=2147483647
+"@ | Out-File -FilePath "$cfg\common.ini" -Encoding ascii
 "MT5_PATH=$exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 Write-Host "MT5 installé"

@@ -40,6 +40,7 @@ def connect() -> None:
         password=os.environ["MT5_PASSWORD"].strip(),
         server=os.environ["MT5_SERVER"].strip(),
         timeout=120_000,
+        portable=True,
     )
     if not ok:
         sys.exit(f"Connexion MT5 impossible : {mt5.last_error()}")
@@ -97,6 +98,12 @@ def download(sym: str, name: str, tf: int, out_dir: str) -> None:
         w = csv.writer(fh)
         w.writerow(["time", "open", "high", "low", "close", "tick_volume", "spread"])
         w.writerows(rows[k] for k in keys)
+    if name == "M5":  # heure serveur de la pause quotidienne : 0 attendu si serveur = New York + 7 h
+        gaps = [k2 for k1, k2 in zip(keys, keys[1:]) if 600 < k2 - k1 < 3 * 3600]
+        hours: dict[int, int] = {}
+        for g in gaps:
+            hours[g // 3600 % 24] = hours.get(g // 3600 % 24, 0) + 1
+        print(f"Reprises après pause, par heure serveur : {dict(sorted(hours.items()))}")
     first = datetime.fromtimestamp(keys[0], UTC)
     last = datetime.fromtimestamp(keys[-1], UTC)
     print(f"{name} : {len(keys)} bougies du {first:%Y-%m-%d} au {last:%Y-%m-%d %H:%M}")

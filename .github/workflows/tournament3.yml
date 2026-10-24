@@ -1,0 +1,63 @@
+name: Tournoi v3 multi-actifs multi-temporalités
+
+# Lancement : à la main (Actions → Tournoi des bots XAUUSD → Run workflow) ou par Claude.
+on:
+  workflow_dispatch:
+    inputs:
+      gens: {description: "Générations", default: "60"}
+      pop: {description: "Population par île", default: "300"}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tournoi3
+  cancel-in-progress: true
+
+jobs:
+  pli:
+    name: Pli ${{ matrix.year }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        # 2019-2026 : walk-forward (l'année testée n'est jamais vue) ; 0 = bot de production
+        year: [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 0]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync
+      - run: uv run python -m research.prep3 data/mt5 cache.pkl
+      - run: uv run python -m research.tournament3 cache.pkl out/fold_${{ matrix.year }}.json ${{ matrix.year }} --gens ${{ inputs.gens || 60 }} --pop ${{ inputs.pop || 300 }} --workers 4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pli-${{ matrix.year }}
+          path: out/
+          retention-days: 14
+
+  resultats:
+    needs: pli
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync
+      - uses: actions/download-artifact@v4
+        with:
+          path: artefacts
+          merge-multiple: true
+      - run: |
+          mkdir -p results/folds && cp artefacts/fold_*.json results/folds/
+          uv run python -m research.summarize results/folds results
+      - name: Enregistrement dans le dépôt
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results
+          git commit -m "Résultats du tournoi (GitHub Actions)" || echo "rien à enregistrer"
+          git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"

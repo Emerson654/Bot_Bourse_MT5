@@ -1,6 +1,6 @@
 """Liste les actifs disponibles sur le serveur et télécharge l'historique H1 de ceux demandés.
 
-Usage (runner Windows) : python scripts/fetch_history.py data/mt5 XAUUSD EURUSD USDJPY ...
+Usage (runner Windows) : python scripts/fetch_history.py data/mt5 [--m5] XAUUSD EURUSD USDJPY ...
 Pour chaque actif : règles du courtier (spread, swap, lots) dans data/mt5/specs.json et bougies H1.
 """
 
@@ -29,29 +29,40 @@ def list_groups(mt5) -> None:
         print(f"[{g}] {len(names)} : {' '.join(sorted(names)[:40])}")
 
 
-def fetch(mt5, sym: str, out_dir: str) -> dict | None:
-    if not mt5.symbol_select(sym, True):
-        print(f"{sym} : indisponible")
-        return None
-    i = mt5.symbol_info(sym)
+def fetch_tf(mt5, sym: str, tf: int, name: str, out_dir: str, days: int) -> list[int]:
+    """Télécharge une unité de temps par tranches ; retourne les horodatages (pour le résumé)."""
     rows: dict[int, tuple] = {}
     t, now = START, datetime.now(UTC)
     while t < now:
-        t2 = min(t + timedelta(days=180), now)
-        r = mt5.copy_rates_range(sym, mt5.TIMEFRAME_H1, t, t2)
+        t2 = min(t + timedelta(days=days), now)
+        r = mt5.copy_rates_range(sym, tf, t, t2)
         if r is not None:
             for x in r:
                 rows[int(x["time"])] = (int(x["time"]), x["open"], x["high"], x["low"], x["close"], int(x["spread"]))
         t = t2
-    if not rows:
+    keys = sorted(rows)
+    if keys:
+        with gzip.open(os.path.join(out_dir, f"{sym}_{name}.csv.gz"), "wt", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["time", "open", "high", "low", "close", "spread"])
+            w.writerows(rows[k] for k in keys)
+    return keys
+
+
+def fetch(mt5, sym: str, out_dir: str, with_m5: bool) -> dict | None:
+    if not mt5.symbol_select(sym, True):
+        print(f"{sym} : indisponible")
+        return None
+    i = mt5.symbol_info(sym)
+    keys = fetch_tf(mt5, sym, mt5.TIMEFRAME_H1, "H1", out_dir, 180)
+    if not keys:
         print(f"{sym} : aucune bougie")
         return None
-    keys = sorted(rows)
-    with gzip.open(os.path.join(out_dir, f"{sym}_H1.csv.gz"), "wt", newline="") as fh:
-        w = csv.writer(fh)
-        w.writerow(["time", "open", "high", "low", "close", "spread"])
-        w.writerows(rows[k] for k in keys)
-    spreads = sorted(rows[k][5] for k in keys[-5000:])
+    if with_m5:  # le 15 min est reconstruit à partir du 5 min
+        k5 = fetch_tf(mt5, sym, mt5.TIMEFRAME_M5, "M5", out_dir, 30)
+        print(f"{sym} : {len(k5)} bougies M5")
+    with gzip.open(os.path.join(out_dir, f"{sym}_H1.csv.gz"), "rt") as fh:
+        spreads = sorted(int(r["spread"]) for r in list(csv.DictReader(fh))[-5000:])
     spec = {"point": i.point, "digits": i.digits, "contract": i.trade_contract_size, "vol_min": i.volume_min,
             "vol_step": i.volume_step, "stops_level": i.trade_stops_level, "swap_long": i.swap_long,
             "swap_short": i.swap_short, "swap_mode": i.swap_mode, "swap_3days": i.swap_rollover3days,
@@ -62,11 +73,12 @@ def fetch(mt5, sym: str, out_dir: str) -> dict | None:
 
 
 def main() -> None:
-    out_dir, symbols = sys.argv[1], sys.argv[2:]
+    with_m5 = "--m5" in sys.argv
+    out_dir, symbols = sys.argv[1], [s for s in sys.argv[2:] if s != "--m5"]
     os.makedirs(out_dir, exist_ok=True)
     mt5 = mt5_setup.connect()
     list_groups(mt5)
-    specs = {s: sp for s in symbols if (sp := fetch(mt5, s, out_dir))}
+    specs = {s: sp for s in symbols if (sp := fetch(mt5, s, out_dir, with_m5))}
     with open(os.path.join(out_dir, "specs.json"), "w") as fh:
         json.dump(specs, fh, indent=1)
     mt5.shutdown()

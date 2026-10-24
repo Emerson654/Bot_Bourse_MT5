@@ -60,3 +60,22 @@ def mtf_votes(b: Bars, server_ts: np.ndarray) -> dict[str, tuple[str, np.ndarray
             if k not in SESSION_ONLY:
                 out[f"{tf}:{k}"] = (fam, to_h1(v, ends, n))
     return out
+
+
+def lower_tf_votes(path_m5: str, point: float, h1_server_ts: np.ndarray) -> dict[str, tuple[str, np.ndarray]]:
+    """Votants 5 min et 15 min, échantillonnés à la clôture de chaque bougie H1.
+
+    Clôture H1 = début + 3600 s ; on prend la dernière bougie M5/M15 terminée à cet instant.
+    """
+    b, ts, _ = load_h1(path_m5, point)
+    close_h1 = h1_server_ts + 3600
+    out: dict[str, tuple[str, np.ndarray]] = {}
+    for tf, key in (("M5", ts // 300), ("M15", ts // 900)):
+        agg, ends = (b, np.arange(len(ts))) if tf == "M5" else aggregate(b, key)
+        end_time = ts[ends] + 300  # fin de la dernière bougie M5 du groupe
+        idx = np.searchsorted(end_time, close_h1, side="right") - 1
+        for k, (fam, v) in compute_votes(agg).items():
+            col = np.zeros(len(close_h1))
+            col[idx >= 0] = v[idx[idx >= 0]]
+            out[f"{tf}:{k}"] = (fam, col)
+    return out

@@ -14,7 +14,7 @@ import time
 import numpy as np
 
 from bot import indicators as ind
-from research.mtf import load_h1, mtf_votes
+from research.mtf import load_h1, lower_tf_votes, mtf_votes
 
 START = np.datetime64("2009-01-01")
 MIN_SPREAD = {"XAUUSD": 0.20}  # plancher prudent en prix (la démo MetaQuotes est plus serrée qu'un vrai courtier)
@@ -33,6 +33,9 @@ def main() -> None:
         t0 = time.time()
         b, server_ts, utc = load_h1(os.path.join(src, f"{sym}_H1.csv.gz"), sp["point"])
         votes = mtf_votes(b, server_ts)
+        m5 = os.path.join(src, f"{sym}_M5.csv.gz")
+        if os.path.exists(m5):  # 5 min et 15 min, si l'historique a été téléchargé
+            votes.update(lower_tf_votes(m5, sp["point"], server_ts))
         a = ind.atr(b.h, b.lo, b.c, 14)
         med = sp["spread_median_pts"] * sp["point"]
         spread = np.maximum(b.spread, max(med, MIN_SPREAD.get(sym, 0.0)))
@@ -41,17 +44,20 @@ def main() -> None:
         sw = (sp["swap_long"] * sp["point"], sp["swap_short"] * sp["point"]) if sp["swap_mode"] == 1 else (0.0, 0.0)
         if sp["swap_mode"] != 1:
             print(f"{sym} : swap en mode {sp['swap_mode']} non modélisé")
-        names = names or list(votes)
-        families = families or [votes[k][0] for k in names]
+        if names is None or len(votes) > len(names):
+            names, families = list(votes), [votes[k][0] for k in votes]
         assets[sym] = {
             "o": b.o[keep], "h": b.h[keep], "lo": b.lo[keep], "c": b.c[keep], "spread": spread[keep], "atr": a[keep],
             "minute": b.minute[keep], "day": b.day[keep], "weekday": b.weekday[keep], "time": utc[keep],
-            "V": np.column_stack([votes[k][1][keep] for k in names]).astype(np.float32),
+            "votes": {k: v[1][keep].astype(np.float32) for k, v in votes.items()},
             "slip": 0.25 * max(med, MIN_SPREAD.get(sym, 0.0)), "swap_long": sw[0], "swap_short": sw[1],
             "triple_wd": (sp["swap_3days"] - 1) % 7,  # MT5 : 0 = dimanche … 3 = mercredi → lundi = 0
         }
-        print(f"{sym} : {keep.sum()} bougies H1, {len(names)} votants, spread {np.median(spread[keep]):.5f} "
+        print(f"{sym} : {keep.sum()} bougies H1, {len(votes)} votants, spread {np.median(spread[keep]):.5f} "
               f"({time.time() - t0:.0f} s)", flush=True)
+    for A in assets.values():  # un actif sans historique 5 min a des votants M5/M15 neutres (0)
+        vs = A.pop("votes")
+        A["V"] = np.column_stack([vs.get(k, np.zeros(len(A["c"]), np.float32)) for k in names])
     with open(out, "wb") as fh:
         pickle.dump({"assets": assets, "names": names, "families": families}, fh)
 

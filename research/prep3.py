@@ -17,7 +17,9 @@ from bot import indicators as ind
 from research.mtf import load_h1, lower_tf_votes, mtf_votes
 
 START = np.datetime64("2009-01-01")
-MIN_SPREAD = {"XAUUSD": 0.20}  # plancher prudent en prix (la démo MetaQuotes est plus serrée qu'un vrai courtier)
+# Planchers de spread en prix, niveau d'un courtier grand public (la démo MetaQuotes affiche parfois 0)
+MIN_SPREAD = {"XAUUSD": 0.20, "XAGUSD": 0.03, "EURUSD": 0.0001, "GBPUSD": 0.00015, "USDJPY": 0.012,
+              "AUDUSD": 0.00012, "USDCHF": 0.00015, "US500": 0.5, "DE40": 1.5, "USTEC": 1.5}
 MIN_BARS = 40_000  # ~6 ans de H1 minimum pour participer
 
 
@@ -40,9 +42,14 @@ def main() -> None:
         med = sp["spread_median_pts"] * sp["point"]
         spread = np.maximum(b.spread, max(med, MIN_SPREAD.get(sym, 0.0)))
         keep = (utc >= START) & np.isfinite(a)
-        # swap en points (mode 1) → prix par unité et par nuit ; autres modes ignorés (signalés)
-        sw = (sp["swap_long"] * sp["point"], sp["swap_short"] * sp["point"]) if sp["swap_mode"] == 1 else (0.0, 0.0)
-        if sp["swap_mode"] != 1:
+        # swap → prix par unité et par nuit : mode 1 = points ; modes 2-4 = devise par lot (÷ taille du contrat)
+        if sp["swap_mode"] == 1:
+            sw = (sp["swap_long"] * sp["point"], sp["swap_short"] * sp["point"])
+        elif sp["swap_mode"] in (2, 3, 4):
+            sw = (sp["swap_long"] / sp["contract"], sp["swap_short"] / sp["contract"])
+        else:
+            sw = (0.0, 0.0)
+        if sp["swap_mode"] not in (1, 2, 3, 4):
             print(f"{sym} : swap en mode {sp['swap_mode']} non modélisé")
         if names is None or len(votes) > len(names):
             names, families = list(votes), [votes[k][0] for k in votes]

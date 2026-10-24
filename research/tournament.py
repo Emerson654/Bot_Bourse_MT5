@@ -271,7 +271,7 @@ def run_fold(cache: str, test_year: int, gens: int, pop: int, workers: int, seed
         train_end, test_end = f"{test_year}-01-01", f"{test_year + 1}-01-01"
     else:
         train_end, test_end = end_data, end_data
-    a, b = index_range(D, "2012-01-01", train_end)
+    a, b = index_range(D, "2010-01-01", train_end)
     val_start = str(np.datetime64(train_end[:10]) - np.timedelta64(365, "D"))
     v0 = index_range(D, val_start, train_end)[0]
     tr, va = (a, v0), (v0, b)

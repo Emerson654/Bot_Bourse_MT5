@@ -4,8 +4,8 @@ name: Tournoi des bots XAUUSD
 on:
   workflow_dispatch:
     inputs:
-      gens: {description: "Générations", default: "60"}
-      pop: {description: "Population par île", default: "400"}
+      gens: {description: "Générations", default: "50"}
+      pop: {description: "Population par île", default: "300"}
 
 permissions:
   contents: write
@@ -30,8 +30,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync
-      - run: uv run python -m research.prep data/XAUUSD_M5_utc.csv.gz cache.pkl
-      - run: uv run python -m research.tournament cache.pkl out/fold_${{ matrix.year }}.json ${{ matrix.year }} --gens ${{ inputs.gens || 60 }} --pop ${{ inputs.pop || 400 }} --workers 4
+      - run: uv run python -m research.prep data/mt5/XAUUSD_M5.csv.gz cache.pkl
+      - run: uv run python -m research.tournament cache.pkl out/fold_${{ matrix.year }}.json ${{ matrix.year }} --gens ${{ inputs.gens || 50 }} --pop ${{ inputs.pop || 300 }} --workers 4
       - uses: actions/upload-artifact@v4
         with:
           name: pli-${{ matrix.year }}

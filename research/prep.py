@@ -15,6 +15,8 @@ from bot import indicators as ind
 from bot.voters import compute_votes
 from research.data import load_m5
 
+MIN_SPREAD = 0.20  # $ par once
+
 
 def main() -> None:
     src, out = sys.argv[1], sys.argv[2]
@@ -24,6 +26,8 @@ def main() -> None:
     votes = compute_votes(b)
     print(f"{len(votes)} votants calculés ({time.time() - t0:.0f} s)", flush=True)
     a = ind.atr(b.h, b.lo, b.c, 14)
+    # Spread prudent : celui de la démo MetaQuotes (~0,12 $) est plus serré qu'un vrai courtier
+    b.spread = np.maximum(b.spread, MIN_SPREAD)
     # Bougies utiles : du lundi au vendredi, 11h55-18h00 Paris (la décision de 11h55 ouvre à 12h00)
     keep = (b.weekday < 5) & (b.minute >= 11 * 60 + 55) & (b.minute < 18 * 60) & np.isfinite(a)
     names = list(votes)

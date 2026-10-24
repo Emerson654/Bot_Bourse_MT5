@@ -38,6 +38,8 @@ from research.sim import metrics, simulate
 
 SLIP = 0.05  # glissement en $ par exécution
 MIN_TPD = 2.0  # trades par jour visés (intraday, volume)
+HARD_TPD = 1.0  # règle stricte : sous 1 trade/jour, le bot est classé derrière tous les autres
+COMBO_MIN = 3  # la grande finale doit combiner au moins 3 champions
 MAX_DD = 0.15
 SMOOTHS = (1, 2, 3, 5)
 TSTOPS = (0, 6, 12, 24, 36, 48)  # en bougies M5 (0 = pas de stop temporel)
@@ -96,6 +98,8 @@ def fitness_of(m: dict) -> float:
     """Note = Sharpe journalier − pénalités (drawdown > 15 %, < 2 trades/jour, échantillon trop petit)."""
     if m["trades"] < 30:
         return -9.0
+    if m["tpd"] < HARD_TPD:  # note graduée pour que le génétique remonte vers le volume visé
+        return -5.0 - (HARD_TPD - m["tpd"]) * 3
     f = m["sharpe"]
     f -= max(0.0, -MAX_DD - m["max_dd"]) * 10
     f -= max(0.0, MIN_TPD - m["tpd"]) / MIN_TPD * 1.5
@@ -202,7 +206,8 @@ def ga(args: tuple) -> list[tuple[float, Genome]]:
 
     def fit(g: Genome) -> float:
         if g not in cache:
-            cache[g] = era_fitness(D, V, g, eras)
+            combo_ok = V_name != "C" or len(g.idx) >= COMBO_MIN
+            cache[g] = era_fitness(D, V, g, eras) if combo_ok else -9.0
         return cache[g]
 
     for gen in range(gens):
@@ -336,12 +341,16 @@ def run_fold(cache: str, test_year: int, gens: int, pop: int, workers: int, seed
         g0 = members[0] if kind == "seul" else rules
         singles.append(Genome((j,), (1.0,), 1, g0.entry, g0.exit, g0.stop_k, g0.tp_r, g0.tstop, g0.cooldown,
                               g0.short, g0.news))
-    jobs = [("C", list(range(C.shape[1])), eras, gens, pop, test_year * 100 + 90 + s, tuple(singles)) for s in range(seeds)]
+    k = C.shape[1]
+    combos = [replace(g, idx=tuple(range(k)), w=(1.0,) * k) for g in singles]  # comité équipondéré, règles de chaque champion
+    jobs = [("C", list(range(k)), eras, gens, pop, test_year * 100 + 90 + s, tuple(combos)) for s in range(seeds)]
     with Pool(workers, initializer=_init, initargs=(cache + ".final",)) as p:
         fin = p.map(ga, jobs)
-    finalists = list(dict.fromkeys([g for r in fin for _, g in sorted(r, key=lambda x: -x[0])[:10]] + singles))
+    finalists = list(dict.fromkeys([g for r in fin for _, g in sorted(r, key=lambda x: -x[0])[:10]] + combos))
+    finalists = [g for g in finalists if len(g.idx) >= COMBO_MIN]
     ranked = select(finalists, D, C, tr, va, eras)
     winner = ranked[0]
+    best_single = select(singles, D, C, tr, va, eras)[0]
 
     def describe(g: Genome) -> dict:
         tot = sum(g.w)
@@ -350,7 +359,9 @@ def run_fold(cache: str, test_year: int, gens: int, pop: int, workers: int, seed
     report["champions"] = names
     report["winner"] = {"genome": asdict(winner), "weights": describe(winner),
                         "train": evaluate(D, C, winner, *tr), "valid": evaluate(D, C, winner, *va)}
+    report["best_single"] = {"champion": names[best_single.idx[0]], "valid": evaluate(D, C, best_single, *va)}
     if te[1] > te[0]:
+        report["best_single"]["test"] = evaluate(D, C, best_single, *te)
         report["winner"]["test"] = evaluate(D, C, winner, *te)
         _, trades = run(D, C, winner, *te)
         report["test_trades"] = trades[:, [3, 4]].tolist()  # [R, rendement] de chaque trade du test

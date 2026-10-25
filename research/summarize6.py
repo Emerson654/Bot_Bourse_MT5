@@ -17,6 +17,16 @@ import numpy as np
 from research.summarize import CRITERIA
 
 
+MIN_TRAIN_SHARPE = float(os.environ.get("MIN_TRAIN_SHARPE", "0"))
+MIN_VALID_SHARPE = float(os.environ.get("MIN_VALID_SHARPE", "-99"))
+
+
+def selected(f: dict) -> bool:
+    """Spécialiste retenu : rentable à l'entraînement ET en validation (les deux connus avant l'année testée)."""
+    w = f["winner"]
+    return w["train"]["sharpe"] > MIN_TRAIN_SHARPE and w["valid"]["sharpe"] > MIN_VALID_SHARPE
+
+
 def main() -> None:
     src, out = sys.argv[1], sys.argv[2]
     folds = [json.load(open(p)) for p in sorted(glob.glob(os.path.join(src, "*.json")))]
@@ -26,7 +36,7 @@ def main() -> None:
     for y in years:
         yd: dict[int, float] = {}
         for f in (f for f in folds if f["test_year"] == y):
-            if f["winner"]["train"]["sharpe"] <= 0:
+            if not selected(f):
                 continue  # spécialiste perdant à l'entraînement : écarté cette année-là
             for d, r in zip(f.get("test_days", []), f.get("test_daily", [])):
                 yd[d] = yd.get(d, 0.0) + r
@@ -47,7 +57,7 @@ def main() -> None:
            "sharpe": float(r.mean() / r.std() * np.sqrt(260)) if len(r) and r.std() > 0 else 0.0,
            "cagr": float(eq[-1] ** (260 / max(len(r), 1)) - 1), "par_annee": per_year, "par_actif": per_asset}
     ok = oos["pf"] > CRITERIA["pf_min"] and -oos["max_dd"] < CRITERIA["max_dd_max"] and oos["trades"] >= CRITERIA["trades_min"]
-    prod = {f["asset"]: f for f in folds if not f["test_year"] and f["winner"]["train"]["sharpe"] > 0}
+    prod = {f["asset"]: f for f in folds if not f["test_year"] and selected(f)}
     os.makedirs(out, exist_ok=True)
     json.dump({"validated": bool(ok), "criteria": CRITERIA, "out_of_sample": oos,
                "production_assets": sorted(prod)}, open(os.path.join(out, "backtest.json"), "w"), indent=1, default=float)

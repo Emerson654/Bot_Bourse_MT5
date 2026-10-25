@@ -71,7 +71,11 @@ def main() -> None:
     ap.add_argument("--gens", type=int, default=60)
     ap.add_argument("--pop", type=int, default=300)
     ap.add_argument("--workers", type=int, default=os.cpu_count())
+    ap.add_argument("--risk-max", type=float, default=0.02, help="risque max par pari (tournoi 7 : 0,01)")
+    ap.add_argument("--dd-max", type=float, default=0.15, help="drawdown toléré par spécialiste (tournoi 7 : 0,10)")
     a = ap.parse_args()
+    T3.RISKS = tuple(r for r in (0.0025, 0.005, 0.0075, 0.01, 0.015, 0.02) if r <= a.risk_max)
+    T3.MAX_DD = a.dd_max
     ASSET.append(a.asset)
     rep = T3.run_fold(a.cache, a.test_year, a.gens, a.pop, a.workers)
     rep["asset"] = a.asset

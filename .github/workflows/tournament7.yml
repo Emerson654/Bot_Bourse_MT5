@@ -1,0 +1,63 @@
+name: Tournoi 7 - spécialistes freinés (risque 1 % max)
+
+on:
+  workflow_dispatch:
+    inputs:
+      gens: {description: "Générations", default: "60"}
+      pop: {description: "Population par île", default: "300"}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tournoi7
+  cancel-in-progress: true
+
+jobs:
+  pli:
+    name: ${{ matrix.asset }} ${{ matrix.year }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        asset: [XAUUSD, XAGUSD, EURUSD, USDJPY, GBPUSD, US500, US30, DE40]
+        year: [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 0]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync
+      - run: uv run python -m research.prep3 data/mt5 cache.pkl ${{ matrix.asset }}
+      - run: uv run python -m research.tournament6 cache.pkl out/${{ matrix.asset }}_${{ matrix.year }}.json ${{ matrix.year }} --asset ${{ matrix.asset }} --gens ${{ inputs.gens || 60 }} --pop ${{ inputs.pop || 300 }} --workers 4 --risk-max 0.01 --dd-max 0.10
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pli-${{ matrix.asset }}-${{ matrix.year }}
+          path: out/
+          retention-days: 14
+
+  resultats:
+    needs: pli
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync
+      - uses: actions/download-artifact@v4
+        with:
+          path: artefacts
+          merge-multiple: true
+      - run: |
+          mkdir -p results/folds && cp artefacts/*.json results/folds/
+          MIN_TRAIN_SHARPE=0.3 MIN_VALID_SHARPE=0 uv run python -m research.summarize6 results/folds results
+      - name: Enregistrement dans le dépôt
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results
+          git commit -m "Résultats du tournoi 7 (GitHub Actions)" || echo "rien à enregistrer"
+          git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"

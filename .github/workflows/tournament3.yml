@@ -1,4 +1,4 @@
-name: Tournoi v3 multi-actifs multi-temporalités
+name: Tournoi multi-actifs (v3 à v5)
 
 # Lancement : à la main (Actions → Tournoi des bots XAUUSD → Run workflow) ou par Claude.
 on:

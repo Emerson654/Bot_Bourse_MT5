@@ -33,7 +33,7 @@ from research.tournament import random_genome as _random_genome
 
 T.TSTOPS = (0, 6, 12, 24, 48, 72, 120)  # en bougies H1 (0 = pas de stop temporel)
 MAX_DD = 0.15
-RISKS = (0.0025, 0.005, 0.0075, 0.01, 0.015, 0.02, 0.025)  # risque par trade possible (0,25 % → 2,5 %)
+RISKS = (0.0025, 0.005, 0.0075, 0.01, 0.015, 0.02)  # risque par trade possible (0,25 % → 2 %)
 _G: dict = {}
 
 
@@ -130,12 +130,12 @@ def metrics(p: dict) -> dict:
 def fitness_of(m: dict) -> float:
     """Sharpe + rendement du portefeuille − pénalités (drawdown > 15 %, profit factor < 1, trop peu de trades).
 
-    Le terme de rendement (3 × CAGR) pousse à miser plus quand c'est rentable ; la pénalité de drawdown,
+    Le terme de rendement (1,5 × CAGR ; 3 en v4 poussait à trop miser) pousse à miser plus quand c'est rentable ; la pénalité de drawdown,
     forte au-delà de 15 %, l'empêche de jouer le compte.
     """
     if m["trades"] < 30:
         return -9.0
-    f = m["sharpe"] + 3 * m["cagr"]
+    f = m["sharpe"] + 1.5 * m["cagr"]
     f -= max(0.0, -MAX_DD - m["max_dd"]) * 10
     f -= max(0.0, 1.0 - m["pf"]) * 2
     f -= max(0.0, 0.1 - m["tpd"]) * 5  # moins d'un trade tous les 10 jours : trop peu pour juger

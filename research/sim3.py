@@ -65,7 +65,7 @@ def simulate(o, h, lo, c, spread, atr, minute, day, weekday, score, entry, exit_
         eq[i] = equity
         # 2) Décision à la clôture de i (seulement pendant la session du bot)
         m_next = minute[i + 1]
-        if not (FIRST_OPEN <= m_next <= LAST_OPEN and day[i + 1] == day[i]):
+        if not (FIRST_OPEN <= m_next <= LAST_OPEN and day[i + 1] == day[i] and weekday[i + 1] < 5):
             continue
         friday_end = weekday[i + 1] == 4 and m_next >= LAST_OPEN
         s = score[i]

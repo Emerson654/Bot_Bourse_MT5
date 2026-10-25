@@ -14,6 +14,7 @@ import time
 import numpy as np
 
 from bot import indicators as ind
+from research.macro import load_series, macro_votes
 from research.mtf import load_h1, lower_tf_votes, mtf_votes
 
 START = np.datetime64("2009-01-01")
@@ -28,6 +29,8 @@ def main() -> None:
     src, out = sys.argv[1], sys.argv[2]
     with open(os.path.join(src, "specs.json")) as fh:
         specs = json.load(fh)
+    series = load_series(os.path.join(os.path.dirname(os.path.normpath(src)), "macro"))  # data/macro
+    print(f"{len(series)} séries actu/macro : {', '.join(series)}")
     assets, names, families = {}, None, None
     for sym, sp in specs.items():
         if sp["bars"] < MIN_BARS:
@@ -39,6 +42,8 @@ def main() -> None:
         m5 = os.path.join(src, f"{sym}_M5.csv.gz")
         if os.path.exists(m5):  # 5 min et 15 min, si l'historique a été téléchargé
             votes.update(lower_tf_votes(m5, sp["point"], server_ts))
+        if series:
+            votes.update(macro_votes(b.day, b.c, series))
         a = ind.atr(b.h, b.lo, b.c, 14)
         med = sp["spread_median_pts"] * sp["point"]
         floor = max(med, MIN_SPREAD.get(sym, FALLBACK_BP * float(np.median(b.c[-5000:]))))
@@ -67,7 +72,8 @@ def main() -> None:
     for A in assets.values():
         # Les votes ne servent qu'aux bougies de décision (clôtures H1 de la session) : on ne garde que celles-là
         m, d = A["minute"], A["day"]
-        dec = np.flatnonzero((m[1:] >= 12 * 60) & (m[1:] <= 17 * 60) & (d[1:] == d[:-1]))
+        wd = A["weekday"]
+        dec = np.flatnonzero((m[1:] >= 12 * 60) & (m[1:] <= 17 * 60) & (d[1:] == d[:-1]) & (wd[1:] < 5))
         A["dec"] = dec
         vs = A.pop("votes")  # un actif sans historique 5 min a des votants M5/M15 neutres (0)
         A["V"] = np.column_stack([vs[k][dec] if k in vs else np.zeros(len(dec), np.float32) for k in names])

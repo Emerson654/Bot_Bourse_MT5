@@ -66,6 +66,10 @@ class Genome:
     # v6 : échelle du stop (1 ≈ ATR horaire, 2 ≈ 4 h, 5 ≈ journalier) et positions simultanées max
     atr_scale: float = 1.0
     max_pos: int = 1
+    # v8 : sécurisation des gains (stop resserré à trail_k × ATR derrière le prix, 0 = non) et filtre de régime
+    trail_k: float = 0.0
+    er_min: float = 0.0
+    adx_min: float = 0.0
 
 
 # ---------------------------------------------------------------------------------------------

@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 
 from bot import execution as ex
 from bot import risk, session
-from bot.specialist import decide, decision_rows, order_plan, signal_of
+from bot.specialist import decide, decision_rows, order_plan, regime_ok, signal_of, trailed_stop
 from bot.telegram import Telegram, esc, price
 from research.macro import load_series
 from research.mtf import bars_from_arrays
@@ -124,7 +124,25 @@ class Live:
                     self.known[p.ticket]["why"] = why
                 ex.close_position(api, p, why)
         mine = [p for p in self.bot_positions() if p.symbol == sym]
-        # 2) entrée sur signal frais
+        # 1 bis) laisser courir les gagnants : stop remonté CHEZ LE COURTIER dès 1 R de gain (jamais redescendu)
+        tick = api.symbol_info_tick(sym)
+        for p in mine:
+            d = 1 if p.type == api.POSITION_TYPE_BUY else -1
+            init = init_distance(p)
+            new = trailed_stop(D, d, tick.bid if d == 1 else tick.ask, p.price_open, init, p.sl)
+            if new is None:
+                continue
+            new = round(new, info.digits)
+            res = api.order_send({"action": api.TRADE_ACTION_SLTP, "symbol": sym, "position": p.ticket,
+                                  "sl": new, "tp": p.tp, "magic": ex.MAGIC})
+            if res is not None and res.retcode == api.TRADE_RETCODE_DONE:
+                if p.ticket in self.known:
+                    self.known[p.ticket]["sl"] = new
+                self.tg.send(f"🔒 <b>{esc(sym)}</b> : stop remonté à {price(new)} pour garder les gains")
+        mine = [p for p in self.bot_positions() if p.symbol == sym]
+        # 2) entrée sur signal frais, seulement si le marché est en tendance (filtre de régime)
+        if not regime_ok(D):
+            return
         sig = signal_of(D.score, g)
         if sig == 0 or sig == D.prev_signal or len(mine) >= g["max_pos"] or any(
                 (1 if p.type == api.POSITION_TYPE_BUY else -1) != sig for p in mine):
@@ -152,7 +170,7 @@ class Live:
             return
         sl = round(px - sig * dist, info.digits)
         tp = round(px + sig * tp_dist, info.digits)
-        ticket = ex.open_position(api, sym, sig, vol, sl, tp, comment=f"v7 {D.score:+.2f}")
+        ticket = ex.open_position(api, sym, sig, vol, sl, tp, comment=f"bot d={dist:.6g}")
         if not ticket:
             self.tg.send(f"⚠️ <b>{esc(sym)}</b> : ordre refusé par le courtier")
             return
@@ -232,6 +250,14 @@ class Live:
             time.sleep(max(5.0, 300 - time.time() % 300 + 20))  # toutes les 5 min, 20 s après la clôture
 
 
+def init_distance(p) -> float:
+    """Distance du stop à l'ouverture (notée dans le commentaire de l'ordre) : c'est la référence de 1 R."""
+    try:
+        return float(str(p.comment).split("d=")[1])
+    except (IndexError, ValueError):
+        return abs(p.price_open - p.sl)
+
+
 def now_str() -> str:
     return datetime.now(session.PARIS).strftime("%Y-%m-%d %H:%M")
 
@@ -245,9 +271,9 @@ def main() -> None:
     if not session.is_trading_day(session.now_paris()):
         return
     try:
-        with open("results/bot_params.json", encoding="utf-8") as fh:
+        with open("results/live/bot_params.json", encoding="utf-8") as fh:
             params = json.load(fh)
-        with open("results/backtest.json", encoding="utf-8") as fh:
+        with open("results/live/backtest.json", encoding="utf-8") as fh:
             validated = bool(json.load(fh).get("validated"))
     except FileNotFoundError:
         tg.send("⚠️ Bot : aucun résultat de tournoi trouvé, pas de session aujourd'hui.")

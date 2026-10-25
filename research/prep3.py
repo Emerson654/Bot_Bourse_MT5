@@ -16,6 +16,7 @@ import numpy as np
 from bot import indicators as ind
 from research.macro import load_series, macro_votes
 from research.mtf import load_h1, lower_tf_votes, mtf_votes
+from research.regime import regime_h1
 
 START = np.datetime64("2009-01-01")
 # Planchers de spread en prix, niveau d'un courtier grand public (la démo MetaQuotes affiche parfois 0)
@@ -47,6 +48,7 @@ def main() -> None:
         if series:
             votes.update(macro_votes(b.day, b.c, series))
         a = ind.atr(b.h, b.lo, b.c, 14)
+        er, adx = regime_h1(b, server_ts)
         med = sp["spread_median_pts"] * sp["point"]
         floor = max(med, MIN_SPREAD.get(sym, FALLBACK_BP * float(np.median(b.c[-5000:]))))
         spread = np.maximum(b.spread, floor)
@@ -64,6 +66,7 @@ def main() -> None:
             names, families = list(votes), [votes[k][0] for k in votes]
         assets[sym] = {
             "o": b.o[keep], "h": b.h[keep], "lo": b.lo[keep], "c": b.c[keep], "spread": spread[keep], "atr": a[keep],
+            "er": er[keep], "adx": adx[keep],
             "minute": b.minute[keep], "day": b.day[keep], "weekday": b.weekday[keep], "time": utc[keep],
             "votes": {k: v[1][keep].astype(np.float32) for k, v in votes.items()},
             "slip": 0.25 * floor, "swap_long": sw[0], "swap_short": sw[1],

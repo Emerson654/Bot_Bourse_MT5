@@ -14,6 +14,7 @@ from bot import indicators as ind
 from bot.voters import Bars
 from research.macro import macro_votes
 from research.mtf import lower_tf_votes_from, mtf_votes
+from research.regime import regime_h1
 
 FIRST_OPEN, LAST_OPEN = 12 * 60, 17 * 60
 MONTH_ATR = np.sqrt(22.0 * 24.0)
@@ -25,6 +26,8 @@ class Decision:
     prev_signal: int  # signal (1, -1, 0) à la décision précédente : une entrée exige un signal « frais »
     atr: float  # ATR(14) H1
     genome: dict  # règles du gagnant (seuils, stop, TP, horizon, risque, positions max)
+    er: float = 1.0  # efficacité du mouvement 20 j (régime, tournoi 8)
+    adx: float = 100.0  # ADX journalier
 
 
 def _ema(x: np.ndarray, n: int) -> np.ndarray:
@@ -71,7 +74,23 @@ def decide(params: dict, b: Bars, ts: np.ndarray, b5: Bars, ts5: np.ndarray, ser
     g = params["winner"]["genome"]
     s = _score(np.column_stack(cols), g)
     a = ind.atr(b.h, b.lo, b.c, 14)
-    return Decision(float(s[-1]), signal_of(float(s[-2]), g) if len(s) > 1 else 0, float(a[-1]), g)
+    er, adx = regime_h1(b, ts)
+    return Decision(float(s[-1]), signal_of(float(s[-2]), g) if len(s) > 1 else 0, float(a[-1]), g,
+                    float(er[-1]), float(adx[-1]))
+
+
+def regime_ok(dec: Decision) -> bool:
+    """Filtre de régime du tournoi 8 : n'entrer que si le marché est en tendance (gènes absents = pas de filtre)."""
+    return dec.er >= dec.genome.get("er_min", 0.0) and dec.adx >= dec.genome.get("adx_min", 0.0)
+
+
+def trailed_stop(dec: Decision, d: int, px_now: float, entry: float, init_dist: float, sl: float) -> float | None:
+    """Nouveau stop (plus serré) si la position a gagné au moins 1 R ; None sinon. Règle de research/sim5."""
+    k = dec.genome.get("trail_k", 0.0)
+    if k <= 0 or init_dist <= 0 or d * (px_now - entry) < init_dist:
+        return None
+    new = px_now - d * k * dec.atr * dec.genome["atr_scale"]
+    return new if (d == 1 and new > sl) or (d == -1 and new < sl) else None
 
 
 def order_plan(dec: Decision, d: int, price: float, spread: float) -> tuple[float, float, float, float]:
@@ -79,6 +98,8 @@ def order_plan(dec: Decision, d: int, price: float, spread: float) -> tuple[floa
     g = dec.genome
     dist = max(g["stop_k"] * dec.atr * g["atr_scale"], 3.0 * spread)
     tp_dist = min(g["tp_r"] * dist, MONTH_ATR * dec.atr)
+    if g.get("trail_k", 0.0) > 0 or "er_min" in g:  # tournoi 8 : objectif ≥ 1,5 × stop
+        tp_dist = min(max(g["tp_r"], 1.5) * dist, MONTH_ATR * dec.atr)
     force = min(1.0, max(0.0, (abs(dec.score) - g["entry"]) / max(1e-9, 1.0 - g["entry"])))
     risk = g["risk_lo"] + (g["risk_hi"] - g["risk_lo"]) * force ** g["risk_pow"]
     return dist, tp_dist, min(risk, 0.02), force

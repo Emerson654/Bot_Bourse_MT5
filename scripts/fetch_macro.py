@@ -6,7 +6,7 @@ Trois outils :
 2. Incertitude économique (EPU) — Baker, Bloom & Davis : comptage quotidien d'articles sur l'incertitude
    de politique économique. https://www.policyuncertainty.com
 3. Macro de marché (FRED, Réserve fédérale de St-Louis) : taux réel 10 ans, taux 10 ans et 2 ans,
-   inflation anticipée, dollar, VIX (peur sur les actions), volatilité de l'or, pétrole, écart de crédit.
+   inflation anticipée, dollar, VIX (peur sur les actions), volatilité de l'or, pétrole.
 
 Sortie : data/macro/<nom>.csv (date, valeur). Usage : python scripts/fetch_macro.py data/macro
 """
@@ -21,7 +21,7 @@ import urllib.request
 
 FRED = {
     "taux_reel_10a": "DFII10", "taux_10a": "DGS10", "taux_2a": "DGS2", "inflation_anticipee": "T10YIE",
-    "dollar": "DTWEXBGS", "vix": "VIXCLS", "vol_or": "GVZCLS", "petrole": "DCOILWTICO", "credit": "BAMLH0A0HYM2",
+    "dollar": "DTWEXBGS", "vix": "VIXCLS", "vol_or": "GVZCLS", "petrole": "DCOILWTICO",
 }
 GPR = "https://www.matteoiacoviello.com/gpr_files/data_gpr_daily_recent.xls"
 EPU = "https://www.policyuncertainty.com/media/All_Daily_Policy_Data.csv"
@@ -65,8 +65,9 @@ def main() -> None:
         d, v = sh.cell_value(k, i_date), sh.cell_value(k, i_gpr)
         if v in ("", None) or d in ("", None):
             continue
-        if isinstance(d, float) and d > 19_000_000:  # aaaammjj
-            n = int(d)
+        txt = str(d).strip()
+        if (isinstance(d, float) and d > 19_000_000) or (txt.replace(".0", "").isdigit() and len(txt.replace(".0", "")) == 8):
+            n = int(float(d))  # aaaammjj
             y, m, dd = n // 10000, n // 100 % 100, n % 100
         elif isinstance(d, float):  # date Excel
             y, m, dd, *_ = xlrd.xldate_as_tuple(d, book.datemode)

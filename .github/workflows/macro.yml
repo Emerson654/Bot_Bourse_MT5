@@ -1,0 +1,28 @@
+name: Données actu et macro (GPR, EPU, FRED)
+
+on:
+  workflow_dispatch:
+  push:
+    paths: [scripts/fetch_macro.py, .github/workflows/macro.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  macro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install xlrd
+      - run: python scripts/fetch_macro.py data/macro
+      - name: Enregistrement dans le dépôt
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/macro
+          git commit -qm "Données actu et macro (GPR, EPU, FRED)" || exit 0
+          git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin "HEAD:${GITHUB_REF_NAME}"

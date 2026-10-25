@@ -40,3 +40,12 @@ def test_demarrage_position_sans_stop_fermee():
 def test_mode_de_remplissage():
     api = SimBroker()
     assert ex.filling_type(api, "XAUUSD") == api.ORDER_FILLING_FOK
+
+
+def test_plusieurs_positions_sur_le_meme_actif():
+    api = SimBroker()
+    t1 = ex.open_position(api, "XAUUSD", 1, 0.5, 2395.0, 2410.0)
+    t2 = ex.open_position(api, "XAUUSD", 1, 0.3, 2390.0, 2420.0)
+    assert t1 != t2 and len(api.positions) == 2
+    p2 = next(p for p in api.positions if p.ticket == t2)
+    assert (p2.volume, p2.sl, p2.tp) == (0.3, 2390.0, 2420.0)

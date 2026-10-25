@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bot Or XAUUSD</title>
+<title>Bot Trading Démo</title>
 <style>
   :root { --bg:#0e1116; --card:#171b22; --txt:#e6e8eb; --mute:#8b93a1; --up:#2fbf71; --down:#e5534b; --gold:#d4a72c; }
   @media (prefers-color-scheme: light) { :root { --bg:#f5f6f8; --card:#fff; --txt:#1b1f24; --mute:#5c6573; } }
@@ -18,14 +18,13 @@
 </style>
 </head>
 <body><main>
-  <h1>🥇 Bot or (XAUUSD) · compte démo</h1>
-  <div class="mute">Session 12h00 – 17h50 (Paris), du lundi au vendredi · mise à jour toutes les 5 min</div>
+  <h1>🤖 Bot de trading · compte démo</h1>
+  <div class="mute">Session 12h00 – 17h50 (Paris, heures de Londres et New York), du lundi au vendredi · mise à jour toutes les 5 min · <span id="actifs"></span></div>
   <div class="card"><div class="state"><span class="dot" id="dot"></span><span id="etat">Chargement…</span></div>
     <div class="mute" id="maj"></div></div>
-  <div class="card"><b>Position en cours</b><div id="pos" class="mute">Aucune</div></div>
+  <div class="card"><b>Positions ouvertes</b><table id="pos"></table></div>
   <div class="card"><b>Trades du jour</b><table id="trades"></table></div>
-  <div class="card"><b>Pondération des stratégies</b><div id="poids"></div></div>
-</main>
+  </main>
 <script>
 const col = e => e.startsWith("en marche") ? "var(--up)" : e.startsWith("en pause") ? "var(--gold)" : "var(--mute)";
 const fmt = r => `<span class="${r >= 0 ? 'up' : 'down'}">${r >= 0 ? '+' : ''}${r} R</span>`;
@@ -35,14 +34,13 @@ async function load() {
     document.getElementById("etat").textContent = s.etat || "inconnu";
     document.getElementById("dot").style.background = col(s.etat || "");
     document.getElementById("maj").textContent = s.maj ? "Dernière mise à jour : " + s.maj + (s.score !== undefined ? " · score " + s.score : "") : "";
-    const p = s.position;
-    document.getElementById("pos").innerHTML = p ? `<b>${p.sens}</b> à ${p.entree} · SL ${p.sl} · TP ${p.tp} · latent ${fmt(p.r_latent)}` : "Aucune";
-    const t = (s.trades_du_jour || []).filter(x => x.evenement === "sortie");
-    document.getElementById("trades").innerHTML = t.length ? "<tr><th>Heure</th><th>Sens</th><th>Entrée</th><th>Sortie</th><th>Résultat</th><th>Raison</th></tr>" +
-      t.map(x => `<tr><td>${x.heure.slice(11)}</td><td>${x.sens}</td><td>${x.entree}</td><td>${x.sortie}</td><td>${fmt(x.r)} (${x.pct}%)</td><td>${x.raison}</td></tr>`).join("") : "<tr><td class='mute'>Aucun trade terminé aujourd'hui</td></tr>";
-    const w = s.poids || {};
-    document.getElementById("poids").innerHTML = Object.entries(w).sort((a, b) => b[1] - a[1]).map(([k, v]) =>
-      `<div style="margin-top:8px">${k} · ${(v * 100).toFixed(0)} %<div class="bar" style="width:${v * 100}%"></div></div>`).join("") || "<span class='mute'>—</span>";
+    const ps = s.positions || [];
+    document.getElementById("actifs").textContent = (s.actifs || []).join(" · ");
+    document.getElementById("pos").innerHTML = ps.length ? "<tr><th>Actif</th><th>Sens</th><th>Entrée</th><th>SL</th><th>TP</th><th>Latent</th></tr>" +
+      ps.map(p => `<tr><td>${p.actif}</td><td>${p.sens}</td><td>${p.entree}</td><td>${p.sl}</td><td>${p.tp}</td><td>${fmt(p.r_latent)}</td></tr>`).join("") : "<tr><td class='mute'>Aucune</td></tr>";
+    const t = s.trades_du_jour || [];
+    document.getElementById("trades").innerHTML = t.length ? "<tr><th>Heure</th><th>Actif</th><th>Sens</th><th>Entrée</th><th>Sortie</th><th>Résultat</th><th>Raison</th></tr>" +
+      t.map(x => `<tr><td>${x.heure.slice(11)}</td><td>${x.actif}</td><td>${x.sens}</td><td>${x.entree}</td><td>${x.sortie}</td><td>${fmt(x.r)}</td><td>${x.raison}</td></tr>`).join("") : "<tr><td class='mute'>Aucun trade terminé aujourd'hui</td></tr>";
   } catch (e) { document.getElementById("etat").textContent = "Statut indisponible"; }
 }
 load(); setInterval(load, 60000);

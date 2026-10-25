@@ -42,7 +42,10 @@ def open_position(api, symbol: str, direction: int, volume: float, sl: float, tp
     if not _ok(res, api):
         log.warning("ordre refusé (code %s)", getattr(res, "retcode", None))
         return None
-    pos = next((p for p in api.positions_get(symbol=symbol) or [] if p.magic == MAGIC), None)
+    # en mode « hedge », le ticket de la position = celui de l'ordre ; à défaut, la plus récente du bot
+    mine = [p for p in api.positions_get(symbol=symbol) or [] if p.magic == MAGIC]
+    pos = next((p for p in mine if p.ticket == getattr(res, "order", None)), None) or (
+        max(mine, key=lambda p: p.ticket) if mine else None)
     if pos is None:
         log.warning("position introuvable après l'ordre")
         return None

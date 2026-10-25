@@ -1,4 +1,4 @@
-name: Session live (démo)
+name: Session live (démo) - spécialistes
 
 # 11h55 heure de Paris, du lundi au vendredi. Le cron GitHub est en UTC : une ligne pour l'heure
 # d'été (UTC+2), une pour l'heure d'hiver (UTC+1) ; la mauvaise s'arrête aussitôt.
@@ -46,7 +46,11 @@ jobs:
         run: ./scripts/install_mt5.ps1
       - name: Dépendances
         if: steps.gate.outputs.run == 'true'
-        run: pip install numpy MetaTrader5
+        run: pip install numpy MetaTrader5 xlrd
+      - name: Actu et macro du jour (GPR, EPU, FRED)
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        run: python scripts/fetch_macro.py data/macro
       - name: Page de statut (branche status)
         if: steps.gate.outputs.run == 'true'
         shell: bash
@@ -64,7 +68,9 @@ jobs:
           MT5_LOGIN: ${{ secrets.MT5_LOGIN }}
           MT5_PASSWORD: ${{ secrets.MT5_PASSWORD }}
           MT5_SERVER: ${{ secrets.MT5_SERVER }}
-        run: python -m bot.main --publish
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m bot.live --publish
       - name: Journal des trades
         if: always() && steps.gate.outputs.run == 'true'
         shell: bash

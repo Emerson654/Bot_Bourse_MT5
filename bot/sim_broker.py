@@ -80,4 +80,4 @@ class SimBroker:
         kind = self.POSITION_TYPE_BUY if req["type"] == self.ORDER_TYPE_BUY else self.POSITION_TYPE_SELL
         sl, tp = (0.0, 0.0) if self.drop_sltp else (req.get("sl", 0.0), req.get("tp", 0.0))
         self.positions.append(Position(self._ticket, req["symbol"], kind, req["volume"], req["price"], sl, tp, req["magic"]))
-        return done
+        return SimpleNamespace(retcode=self.TRADE_RETCODE_DONE, order=self._ticket)

@@ -19,12 +19,18 @@ SESSION_ONLY = ("asia_range", "london_range", "ny_orb")  # n'ont de sens qu'en H
 
 
 def load_h1(path: str, point: float) -> tuple[Bars, np.ndarray, np.ndarray]:
-    """Bougies H1 (heure de Paris) + horodatage serveur brut + UTC (datetime64[s])."""
+    """Bougies (fichier CSV MT5) en heure de Paris + horodatage serveur brut + UTC (datetime64[s])."""
     with gzip.open(path, "rt") as fh:
         rows = list(csv.DictReader(fh))
     ts = np.array([int(r["time"]) for r in rows])
     o, h, lo, c = (np.array([float(r[k]) for r in rows]) for k in ("open", "high", "low", "close"))
-    spread = np.array([float(r["spread"]) for r in rows]) * point
+    return bars_from_arrays(ts, o, h, lo, c, np.array([float(r["spread"]) for r in rows]), point)
+
+
+def bars_from_arrays(ts, o, h, lo, c, spread_pts, point: float) -> tuple[Bars, np.ndarray, np.ndarray]:
+    """Même conversion que load_h1, à partir des tableaux renvoyés par MT5 (bot live)."""
+    ts = np.asarray(ts, dtype=np.int64)
+    spread = np.asarray(spread_pts, dtype=float) * point
     utc = [server_to_utc(int(t)) for t in ts]
     paris = [u.astimezone(PARIS) for u in utc]
     b = Bars(o, h, lo, c, spread, np.array([p.hour * 60 + p.minute for p in paris]),
@@ -68,6 +74,10 @@ def lower_tf_votes(path_m5: str, point: float, h1_server_ts: np.ndarray) -> dict
     Clôture H1 = début + 3600 s ; on prend la dernière bougie M5/M15 terminée à cet instant.
     """
     b, ts, _ = load_h1(path_m5, point)
+    return lower_tf_votes_from(b, ts, h1_server_ts)
+
+
+def lower_tf_votes_from(b: Bars, ts: np.ndarray, h1_server_ts: np.ndarray) -> dict[str, tuple[str, np.ndarray]]:
     close_h1 = h1_server_ts + 3600
     out: dict[str, tuple[str, np.ndarray]] = {}
     for tf, key in (("M5", ts // 300), ("M15", ts // 900)):

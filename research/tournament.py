@@ -63,6 +63,9 @@ class Genome:
     risk_lo: float = 0.01
     risk_hi: float = 0.01
     risk_pow: float = 1.0
+    # v6 : échelle du stop (1 ≈ ATR horaire, 2 ≈ 4 h, 5 ≈ journalier) et positions simultanées max
+    atr_scale: float = 1.0
+    max_pos: int = 1
 
 
 # ---------------------------------------------------------------------------------------------

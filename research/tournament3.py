@@ -265,6 +265,7 @@ def run_fold(cache: str, test_year: int, gens: int, pop: int, workers: int, seed
         pt = portfolio(winner, te, "C", kept)
         report["winner"]["test"] = metrics(pt)
         report["test_daily"] = pt["r"].tolist()
+        report["test_days"] = pt["days"].tolist()
         report["test_trades"] = pt["trades"][:, [3, 4]].tolist()
         report["per_asset_test"] = {a: metrics({"r": r, "trades": t}) for a, (r, t) in pt["per_asset"].items()}
     report["minutes"] = round((time.time() - t0) / 60, 1)

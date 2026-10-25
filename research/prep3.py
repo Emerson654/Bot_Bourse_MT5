@@ -1,6 +1,6 @@
 """Cache du tournoi v3 : pour chaque actif, bougies H1 + votants H1/H4/D1 + coûts réels du courtier.
 
-Usage : python -m research.prep3 data/mt5 cache3.pkl
+Usage : python -m research.prep3 data/mt5 cache3.pkl [XAUUSD EURUSD ...]
 """
 
 from __future__ import annotations
@@ -26,13 +26,15 @@ MIN_BARS = 40_000  # ~6 ans de H1 minimum pour participer
 
 
 def main() -> None:
-    src, out = sys.argv[1], sys.argv[2]
+    src, out, only = sys.argv[1], sys.argv[2], set(sys.argv[3:])  # actifs facultatifs : on ne prépare que ceux-là
     with open(os.path.join(src, "specs.json")) as fh:
         specs = json.load(fh)
     series = load_series(os.path.join(os.path.dirname(os.path.normpath(src)), "macro"))  # data/macro
     print(f"{len(series)} séries actu/macro : {', '.join(series)}")
     assets, names, families = {}, None, None
     for sym, sp in specs.items():
+        if only and sym not in only:
+            continue
         if sp["bars"] < MIN_BARS:
             print(f"{sym} : historique trop court ({sp['bars']} bougies), écarté")
             continue

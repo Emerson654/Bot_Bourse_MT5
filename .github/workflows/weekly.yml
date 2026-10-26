@@ -1,0 +1,76 @@
+name: Backtest hebdomadaire du bot en service
+
+# Chaque samedi (marchés fermés) et à la demande depuis le dashboard.
+on:
+  schedule:
+    - cron: "17 7 * * 6"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backtest
+  cancel-in-progress: false
+
+jobs:
+  donnees:
+    name: Historique à jour (MT5)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installation de MetaTrader 5
+        shell: pwsh
+        run: ./scripts/install_mt5.ps1
+      - run: pip install numpy MetaTrader5
+      - name: Téléchargement (actifs du bot en service)
+        shell: bash
+        env:
+          MT5_LOGIN: ${{ secrets.MT5_LOGIN }}
+          MT5_PASSWORD: ${{ secrets.MT5_PASSWORD }}
+          MT5_SERVER: ${{ secrets.MT5_SERVER }}
+        run: |
+          ASSETS=$(python -c "import json;print(' '.join(json.load(open('results/live/bot_params.json'))))")
+          python scripts/fetch_history.py data/mt5 --m5 $ASSETS
+      - name: Enregistrement
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/mt5
+          git commit -qm "Historique à jour pour le backtest hebdomadaire" || exit 0
+          git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin "HEAD:${GITHUB_REF_NAME}"
+
+  backtest:
+    name: Backtest
+    needs: donnees
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - run: git pull -q origin "${GITHUB_REF_NAME}"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync
+      - name: Actu et macro à jour
+        continue-on-error: true
+        run: uv run --with xlrd python scripts/fetch_macro.py data/macro
+      - name: Backtest du bot en service
+        run: |
+          ASSETS=$(python3 -c "import json;print(' '.join(json.load(open('results/live/bot_params.json'))))")
+          uv run python -m research.prep3 data/mt5 cache.pkl $ASSETS
+          uv run python -m research.backtest_live cache.pkl results/weekly
+      - name: Enregistrement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/weekly data/macro
+          git commit -qm "Backtest hebdomadaire du bot en service" || exit 0
+          git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin "HEAD:${GITHUB_REF_NAME}"

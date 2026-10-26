@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bot Trading — Vue d'ensemble</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0b0d;--card:#151518;--card2:#1c1c20;--line:#2a2a30;--txt:#f4f4f6;--mut:#8b8b95;
+  --violet:#6d5dfc;--blue:#4f7cff;--lav:#cfc8ff;--lime:#d7f45b;--pink:#f5a3c7;--orange:#ff8a3d;--green:#7be0a0;--red:#ff6b6b;
+  --r:26px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1320px;margin:0 auto;padding:28px 24px 40px}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+header h1{font-size:28px;font-weight:600;letter-spacing:-.02em}
+header .sub{color:var(--mut);font-size:13px;margin-top:2px}
+.sp{flex:1}
+.pills,.tog{display:flex;background:var(--card);border-radius:999px;padding:4px;gap:2px}
+.pills button,.tog button{background:none;border:0;color:var(--mut);font:500 13px Inter;padding:8px 14px;border-radius:999px;cursor:pointer;transition:.25s}
+.pills button.on{background:var(--txt);color:#000}
+.tog button.on{background:var(--violet);color:#fff}
+.av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--pink));display:grid;place-items:center;font-weight:700;color:#000}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{background:var(--card);border-radius:var(--r);padding:22px;position:relative;overflow:hidden;transition:transform .5s cubic-bezier(.2,.8,.2,1),opacity .5s}
+.card h3{font-size:14px;font-weight:500;color:var(--mut);display:flex;align-items:center;gap:8px}
+.card .k{font-size:34px;font-weight:600;letter-spacing:-.03em;margin-top:8px}
+.mono{font-family:"JetBrains Mono",monospace}
+.reload .card{opacity:.25;transform:translateY(8px) scale(.985)}
+/* carte principale */
+.hero{grid-column:span 2;grid-row:span 2;background:radial-gradient(120% 90% at 0% 0%,#8b7dff 0%,#5a4bf0 40%,#3b31b8 75%,#2a2390 100%);min-height:430px;display:flex;flex-direction:column}
+.hero h3{color:#e6e2ff}
+.dots{font-family:Doto,monospace;font-weight:900;font-size:clamp(46px,6vw,78px);line-height:1;margin-top:14px;letter-spacing:.02em}
+.hero .delta{display:inline-flex;gap:8px;margin-top:10px;font-size:13px;color:#e6e2ff}
+.chip{background:rgba(255,255,255,.16);padding:5px 10px;border-radius:999px;font-weight:600}
+.chip.neg{background:rgba(255,107,107,.25)}
+.hero svg{flex:1;width:100%;margin-top:14px;min-height:220px}
+.tip{position:absolute;pointer-events:none;background:#fff;color:#000;font-size:12px;padding:6px 10px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .15s;white-space:nowrap}
+/* jauge */
+.gauge svg{width:100%;height:150px;margin-top:6px}
+.legend{display:flex;flex-direction:column;gap:6px;margin-top:6px;font-size:12px;color:var(--mut)}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.lime{background:var(--lime);color:#111}
+.lime h3,.lime .s{color:#3b4210}
+.pink{background:var(--pink);color:#2a0c1c}.pink h3{color:#6a2a4a}
+.orange{background:var(--orange);color:#2a1100}.orange h3{color:#6a3410}
+.green{background:var(--green);color:#06301a}.green h3{color:#1e5a38}
+.s{font-size:12px;color:var(--mut);margin-top:4px}
+.ticks{display:flex;gap:3px;align-items:flex-end;height:46px;margin-top:16px}
+.ticks span{flex:1;border-radius:3px;background:var(--line);transition:height .6s,background .6s}
+.ticks span.w{background:var(--lime)}
+.wide{grid-column:span 2}
+.full{grid-column:1/-1}
+.list{margin-top:12px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.row{display:flex;align-items:center;justify-content:space-between;background:var(--card2);padding:10px 12px;border-radius:14px}
+.row b{font-weight:600}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.state{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:20px;font-weight:600}
+.led{width:12px;height:12px;border-radius:50%;background:var(--mut);box-shadow:0 0 0 4px rgba(255,255,255,.05)}
+.led.on{background:var(--green);animation:pulse 1.6s infinite}
+.led.bt{background:var(--orange);animation:pulse 1.2s infinite}
+.led.err{background:var(--red)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(123,224,160,.6)}100%{box-shadow:0 0 0 12px rgba(123,224,160,0)}}
+.btn{margin-top:14px;width:100%;border:0;border-radius:14px;padding:12px;font:600 14px Inter;cursor:pointer;background:var(--txt);color:#000;transition:.2s}
+.btn:hover{transform:translateY(-1px)}
+.btn:disabled{opacity:.5;cursor:default;transform:none}
+.mini svg{width:100%;height:70px}
+.spark{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;margin-top:10px;font-size:13px;font-weight:600}
+.spark svg{width:100%;height:28px}
+.bars{display:flex;gap:10px;align-items:flex-end;height:120px;margin-top:16px}
+.bars div{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;font-size:11px;font-weight:600}
+.bars span{width:100%;border-radius:10px;background:rgba(6,48,26,.85);transition:height .7s cubic-bezier(.2,.8,.2,1)}
+.bars span.n{background:rgba(6,48,26,.3)}
+.mets{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px}
+.met{background:var(--card2);border-radius:16px;padding:12px 14px}
+.met small{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.met div{font-size:20px;font-weight:600;margin-top:4px}
+.yrs{display:flex;gap:8px;align-items:center;height:110px;margin-top:14px}
+.yrs div{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;font-size:11px;color:var(--mut)}
+.yrs .h{flex:1;width:100%;display:flex;flex-direction:column;justify-content:center;position:relative}
+.yrs .h::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px dashed var(--line)}
+.yrs span{display:block;width:70%;margin:0 auto;border-radius:6px;transition:height .7s}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.badge.ok{background:rgba(123,224,160,.15);color:var(--green)}
+.badge.ko{background:rgba(255,107,107,.15);color:var(--red)}
+.empty{color:var(--mut);font-size:13px;margin-top:14px}
+footer{color:var(--mut);font-size:12px;text-align:center;margin-top:24px}
+dialog{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:20px;padding:22px;width:min(360px,90vw)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog input{width:100%;margin-top:12px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card2);color:var(--txt);font:14px Inter}
+dialog .acts{display:flex;gap:8px;margin-top:14px}
+dialog .acts button{flex:1}
+.ghost{background:var(--card2)!important;color:var(--txt)!important}
+@media (max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:640px){.wrap{padding:18px 16px}.grid{grid-template-columns:1fr}.hero,.wide{grid-column:auto}.hero{min-height:380px}header h1{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <div><h1>Vue d'ensemble</h1><div class="sub" id="maj">Chargement…</div></div>
+    <div class="sp"></div>
+    <div class="pills" id="pills">
+      <button data-p="30">1M</button><button data-p="91" class="on">3M</button><button data-p="365">1A</button><button data-p="0">Tout</button>
+    </div>
+    <div class="tog" id="tog"><button data-m="demo" class="on">Démo</button><button data-m="bt">Backtest</button></div>
+    <div class="av">E</div>
+  </header>
+
+  <div class="grid" id="grid">
+    <div class="card hero">
+      <h3 id="heroT">Capital du compte démo</h3>
+      <div class="dots" id="cap">—</div>
+      <div class="delta"><span class="chip" id="capD">—</span><span id="capS"></span></div>
+      <svg id="stream" preserveAspectRatio="none"></svg>
+      <div class="tip" id="tip"></div>
+    </div>
+
+    <div class="card gauge">
+      <h3>Exposition au risque</h3>
+      <svg viewBox="0 0 200 120" id="gauge"></svg>
+      <div class="legend" id="gLeg"></div>
+    </div>
+
+    <div class="card lime">
+      <h3>Rendement sur la période</h3>
+      <div class="k" id="ret">—</div>
+      <div class="s" id="retS"></div>
+      <div class="mini"><svg id="retLine" preserveAspectRatio="none"></svg></div>
+    </div>
+
+    <div class="card">
+      <h3>Taux de réussite</h3>
+      <div class="k" id="win">—</div>
+      <div class="s" id="winS"></div>
+      <div class="ticks" id="ticks"></div>
+    </div>
+
+    <div class="card">
+      <h3>État du bot</h3>
+      <div class="state"><span class="led" id="led"></span><span id="etat">—</span></div>
+      <div class="s" id="etatS"></div>
+      <div class="s" id="btS" style="margin-top:10px"></div>
+      <button class="btn" id="runBt">Lancer un backtest</button>
+    </div>
+
+    <div class="card pink">
+      <h3>Gains / pertes par mois</h3>
+      <div class="k" id="mBest">—</div>
+      <div class="s" style="color:#6a2a4a" id="mS"></div>
+      <div class="mini"><svg id="months" viewBox="0 0 300 90" preserveAspectRatio="none" style="height:90px"></svg></div>
+    </div>
+
+    <div class="card orange">
+      <h3>Spécialistes par actif</h3>
+      <div id="assets" class="spark"></div>
+    </div>
+
+    <div class="card green">
+      <h3>Résultat par jour</h3>
+      <div class="bars" id="wd"></div>
+    </div>
+
+    <div class="card">
+      <h3>Positions ouvertes</h3>
+      <div class="list" id="pos"></div>
+    </div>
+
+    <div class="card wide">
+      <h3>Derniers trades</h3>
+      <div class="list" id="trades"></div>
+    </div>
+
+    <div class="card wide">
+      <h3>Dernier backtest hebdomadaire <span id="btDate" class="s" style="margin:0"></span></h3>
+      <div class="mets" id="mets"></div>
+    </div>
+
+    <div class="card wide">
+      <h3>Validation hors échantillon (walk-forward) <span id="valB"></span></h3>
+      <div class="yrs" id="yrs"></div>
+      <div class="s" id="valS"></div>
+    </div>
+  </div>
+  <footer>Données : dépôt GitHub du bot, actualisées toutes les minutes · design inspiré de vasnev.art</footer>
+</div>
+
+<dialog id="dlg">
+  <b>Lancer un backtest</b>
+  <div class="s">Rejoue le bot en service sur tout l'historique (≈ 15 min).</div>
+  <input type="password" id="pwd" placeholder="Mot de passe du dashboard" autocomplete="current-password">
+  <div class="s" id="dlgMsg"></div>
+  <div class="acts"><button class="btn ghost" id="cancel">Annuler</button><button class="btn" id="go">Lancer</button></div>
+</dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const S = { period: 91, mode: "demo", data: null, shown: {} };
+const fmtEur = (v) => Math.round(v).toLocaleString("fr-FR").replace(/ | /g, " ") + " €";
+const pct = (v, d = 1) => (v >= 0 ? "+" : "") + (v * 100).toFixed(d).replace(".", ",") + " %";
+const day = (s) => new Date(s.slice(0, 10) + "T00:00:00Z");
+const fr = (d) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" });
+const WD = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
+
+// Animation d'un nombre (compteur) entre l'ancienne et la nouvelle valeur.
+function count(el, to, fmt, key) {
+  const from = S.shown[key] ?? to * 0.96, t0 = performance.now(), dur = 900;
+  S.shown[key] = to;
+  const step = (t) => {
+    const k = Math.max(0, Math.min(1, (t - t0) / dur)), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = fmt(from + (to - from) * e);
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// Série « indice de capital » selon le mode : démo (journal réel) ou backtest (dernier backtest hebdo).
+function series() {
+  const d = S.data;
+  if (S.mode === "demo" && d.equity.length) return d.equity.map((r) => [day(String(r.date)), +r.indice]);
+  if (d.backtest?.courbe?.length) return d.backtest.courbe.map(([t, v]) => [day(t), v]);
+  return [];
+}
+function cut(pts) {
+  if (!S.period || !pts.length) return pts;
+  const lim = pts[pts.length - 1][0] - S.period * 864e5;
+  const out = pts.filter((p) => p[0] >= lim);
+  return out.length > 1 ? out : pts.slice(-2);
+}
+function tradesInPeriod() {
+  const tr = S.data.trades.filter((t) => t.r !== "" && t.r !== undefined);
+  if (!S.period) return tr;
+  const lim = Date.now() - S.period * 864e5;
+  return tr.filter((t) => day(String(t.heure)) >= lim);
+}
+
+// Graphique principal : courbe de capital façon « streamgraph » (3 bandes superposées).
+function drawStream(pts) {
+  const svg = $("stream"), W = svg.clientWidth || 600, H = svg.clientHeight || 230;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  if (pts.length < 2) { svg.innerHTML = `<text x="12" y="30" fill="#e6e2ff" font-size="13">Pas encore de données sur cette période</text>`; return; }
+  const v = pts.map((p) => p[1]), lo = Math.min(...v), hi = Math.max(...v), span = hi - lo || 1;
+  const x = (i) => (i / (pts.length - 1)) * W, y = (val) => H * 0.12 + (1 - (val - lo) / span) * H * 0.55;
+  const smooth = (ys) => ys.map((yy, i) => (i ? `L${x(i).toFixed(1)},${yy.toFixed(1)}` : `M0,${yy.toFixed(1)}`)).join("");
+  const top = v.map(y), mid = top.map((t, i) => t + H * 0.07 + Math.sin(i / 7) * 3), bot = mid.map((t, i) => t + H * 0.07 + Math.cos(i / 9) * 4);
+  const end = bot.map((t, i) => t + H * 0.09 + Math.sin(i / 5) * 3);
+  // bande entre deux courbes : aller sur la courbe haute, retour sur la courbe basse
+  const band = (a, b, fill, op) => `<path d="${smooth(a)}${b.map((yy, i) => `L${x(b.length - 1 - i).toFixed(1)},${b[b.length - 1 - i].toFixed(1)}`).join("")}Z" fill="${fill}" opacity="${op}"/>`;
+  const area = (ys, fill, op) => `<path d="${smooth(ys)}L${W},${H}L0,${H}Z" fill="${fill}" opacity="${op}"/>`;
+  const step = Math.max(1, Math.floor(pts.length / 4));
+  let marks = "";
+  for (let i = step; i < pts.length - step / 2; i += step)
+    marks += `<line x1="${x(i)}" x2="${x(i)}" y1="${top[i]}" y2="${H}" stroke="rgba(255,255,255,.35)" stroke-dasharray="2 4"/><text x="${x(i) + 6}" y="${H - 8}" fill="#e6e2ff" font-size="11">${fr(pts[i][0])}</text>`;
+  svg.innerHTML = `<defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a3d" stop-opacity=".35"/><stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/></linearGradient><clipPath id="cl"><rect id="clr" width="0" height="${H}"/></clipPath></defs>
+    <g clip-path="url(#cl)">${area(end, "url(#fade)", 1)}${band(bot, end, "#ff8a3d", 0.95)}${band(mid, bot, "#cfc8ff", 0.9)}${band(top, mid, "#ffffff", 0.97)}
+    <path d="${smooth(top)}" fill="none" stroke="#fff" stroke-width="2"/></g>${marks}
+    <circle id="dot" r="5" fill="#fff" stroke="#3b31b8" stroke-width="2" opacity="0"/>`;
+  const r = $("clr"), t0 = performance.now();
+  const anim = (t) => { const k = Math.max(0, Math.min(1, (t - t0) / 1100)); r.setAttribute("width", W * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(anim); };
+  requestAnimationFrame(anim);
+  svg.onmousemove = (e) => {
+    const b = svg.getBoundingClientRect(), i = Math.round(((e.clientX - b.left) / b.width) * (pts.length - 1));
+    const p = pts[Math.max(0, Math.min(pts.length - 1, i))], dot = $("dot"), tip = $("tip");
+    dot.setAttribute("cx", x(i)); dot.setAttribute("cy", top[i]); dot.setAttribute("opacity", 1);
+    tip.textContent = `${fr(p[0])} · ${fmtEur(p[1] * S.data.capital)}`;
+    tip.style.opacity = 1; tip.style.left = Math.min(e.clientX - b.left + 10, b.width - 150) + 22 + "px"; tip.style.top = b.top - svg.parentElement.getBoundingClientRect().top + top[i] - 30 + "px";
+  };
+  svg.onmouseleave = () => { $("tip").style.opacity = 0; $("dot").setAttribute("opacity", 0); };
+}
+
+function line(svg, ys, color) {
+  const W = 300, H = svg.id === "retLine" ? 70 : 28;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  if (ys.length < 2) { svg.innerHTML = ""; return; }
+  const lo = Math.min(...ys), hi = Math.max(...ys), sp = hi - lo || 1;
+  const d = ys.map((v, i) => `${i ? "L" : "M"}${((i / (ys.length - 1)) * W).toFixed(1)},${(2 + (1 - (v - lo) / sp) * (H - 4)).toFixed(1)}`).join("");
+  svg.innerHTML = `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"><animate attributeName="stroke-dashoffset" to="0" dur=".9s" fill="freeze"/></path>`;
+}
+
+function drawGauge() {
+  const st = S.data.statut, pos = st?.positions || [];
+  const risk = pos.reduce((a, p) => a + (+p.risque_pct || 1), 0), cap = 6;
+  const arc = (a0, a1, col, w = 16) => {
+    const P = (a) => [100 + 80 * Math.cos(Math.PI * (1 - a)), 105 - 80 * Math.sin(Math.PI * (1 - a))];
+    const [x0, y0] = P(a0), [x1, y1] = P(a1);
+    return `<path d="M${x0},${y0} A80,80 0 0 1 ${x1},${y1}" stroke="${col}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;
+  };
+  const cols = ["#6d5dfc", "#d7f45b", "#ff8a3d", "#f5a3c7", "#7be0a0"];
+  const byA = {};
+  pos.forEach((p) => (byA[p.actif] = (byA[p.actif] || 0) + (+p.risque_pct || 1)));
+  let a = 0, segs = "";
+  Object.entries(byA).forEach(([n, v], i) => { const b = a + (v / cap); segs += arc(a + 0.005, Math.min(1, b) - 0.005, cols[i % 5]); a = b; });
+  $("gauge").innerHTML = arc(0, 1, "#2a2a30") + segs +
+    `<text x="100" y="92" text-anchor="middle" fill="#f4f4f6" font-size="26" font-weight="600" font-family="Inter">${risk.toFixed(1).replace(".", ",")} %</text>
+     <text x="100" y="112" text-anchor="middle" fill="#8b8b95" font-size="11" font-family="Inter">sur ${cap} % max · ${pos.length} position${pos.length > 1 ? "s" : ""}</text>`;
+  $("gLeg").innerHTML = Object.keys(byA).length
+    ? Object.entries(byA).map(([n, v], i) => `<span><i style="background:${cols[i % 5]}"></i>${n} — ${v.toFixed(1).replace(".", ",")} %</span>`).join("")
+    : `<span>Aucune position ouverte</span>`;
+}
+
+function render() {
+  const d = S.data, all = series(), pts = cut(all), bt = S.mode === "bt";
+  $("heroT").textContent = bt ? "Capital simulé (dernier backtest)" : "Capital du compte démo (indice × capital de départ)";
+  const last = pts.length ? pts[pts.length - 1][1] : 1, first = pts.length ? pts[0][1] : 1, r = last / first - 1;
+  count($("cap"), last * d.capital, fmtEur, "cap" + S.mode);
+  $("capD").textContent = pct(r); $("capD").className = "chip" + (r < 0 ? " neg" : "");
+  $("capS").textContent = pts.length ? `depuis le ${fr(pts[0][0])}` : (bt ? "aucun backtest hebdo pour l'instant" : "le journal démarre à la 1re séance");
+  requestAnimationFrame(() => drawStream(pts));
+
+  count($("ret"), r * 100, (v) => (v >= 0 ? "+" : "") + v.toFixed(2).replace(".", ",") + " %", "ret" + S.mode + S.period);
+  const yrs = pts.length > 1 ? (pts[pts.length - 1][0] - pts[0][0]) / 3.156e10 : 0;
+  $("retS").textContent = yrs > 0.2 ? `soit ${pct(Math.pow(last / first, 1 / yrs) - 1)} par an` : "période courte, à confirmer";
+  line($("retLine"), pts.map((p) => p[1]), "#2a3008");
+
+  // Taux de réussite
+  let wins, n;
+  if (bt) { const g = d.backtest?.global; n = g?.trades || 0; wins = g ? g.win : 0; }
+  else { const tr = tradesInPeriod(); n = tr.length; wins = n ? tr.filter((t) => +t.r > 0).length / n : 0; }
+  count($("win"), wins * 100, (v) => v.toFixed(0) + " %", "win" + S.mode + S.period);
+  $("winS").textContent = `${n} trade${n > 1 ? "s" : ""} ${bt ? "dans le backtest" : "clôturés sur la période"}`;
+  $("ticks").innerHTML = Array.from({ length: 30 }, (_, i) => `<span class="${i < Math.round(wins * 30) ? "w" : ""}" style="height:${30 + ((i * 37) % 70)}%"></span>`).join("");
+
+  // Mois
+  const mm = {};
+  for (let i = 1; i < pts.length; i++) { const k = pts[i][0].toISOString().slice(0, 7); mm[k] = (mm[k] || 1) * (pts[i][1] / pts[i - 1][1]); }
+  const mv = Object.entries(mm).map(([k, v]) => [k, v - 1]).slice(-12);
+  const pos = mv.filter((m) => m[1] > 0).length;
+  $("mBest").textContent = mv.length ? `${pos} / ${mv.length}` : "—";
+  $("mS").textContent = mv.length ? "mois gagnants" : "pas encore de mois complet";
+  const mx = Math.max(1e-9, ...mv.map((m) => Math.abs(m[1])));
+  const bw = 300 / Math.max(1, mv.length);
+  $("months").innerHTML = `<line x1="0" x2="300" y1="45" y2="45" stroke="#6a2a4a" stroke-opacity=".3"/>` + mv.map(([k, v], i) => {
+    const h = (Math.abs(v) / mx) * 40;
+    return `<rect x="${i * bw + bw * 0.2}" width="${bw * 0.6}" rx="3" y="${v >= 0 ? 45 - h : 45}" height="${h}" fill="${v >= 0 ? "#2a0c1c" : "#ffffff"}" opacity=".85"><title>${k} : ${pct(v)}</title><animate attributeName="height" from="0" to="${h}" dur=".7s"/></rect>`;
+  }).join("");
+
+  // Jours de la semaine
+  let wdv = [0, 0, 0, 0, 0];
+  if (bt) wdv = d.backtest?.jours_semaine || wdv;
+  else { const c = [0, 0, 0, 0, 0]; tradesInPeriod().forEach((t) => { const w = (day(String(t.heure)).getUTCDay() + 6) % 7; if (w < 5) { wdv[w] += +t.r; c[w]++; } }); }
+  const wm = Math.max(1e-9, ...wdv.map(Math.abs));
+  $("wd").innerHTML = wdv.map((v, i) => `<div><span class="${v < 0 ? "n" : ""}" style="height:${8 + (Math.abs(v) / wm) * 70}%"></span>${WD[i]}<small style="opacity:.7">${bt ? (v >= 0 ? "+" : "") + v.toFixed(3).replace(".", ",") + "%" : (v >= 0 ? "+" : "") + v.toFixed(1).replace(".", ",") + "R"}</small></div>`).join("");
+
+  // Spécialistes par actif
+  const pa = d.backtest?.par_actif || {}, names = d.validation?.actifs || Object.keys(pa) || [];
+  $("assets").innerHTML = (names.length ? names : Object.keys(pa)).map((a) => {
+    const m = pa[a];
+    return `<span>${a}</span><span>${m ? pct(m.cagr) + "/an" : "—"}</span>`;
+  }).join("") || `<span>Aucun actif</span>`;
+
+  drawGauge();
+  const ps = d.statut?.positions || [];
+  $("pos").innerHTML = ps.length ? ps.map((p) => `<div class="row"><span><b>${p.actif}</b> · ${p.sens}</span><span class="mono">${p.entree ?? ""}</span><span class="mono ${+p.r_latent >= 0 ? "pos" : "neg"}">${(+p.r_latent || 0).toFixed(2)} R</span></div>`).join("") : `<div class="empty">Aucune position ouverte</div>`;
+  const tr = [...d.trades].reverse().slice(0, 6);
+  $("trades").innerHTML = tr.length ? tr.map((t) => `<div class="row"><span class="mono" style="color:var(--mut)">${String(t.heure).slice(0, 16)}</span><span><b>${t.actif}</b> · ${t.sens}</span><span class="mono">${t.entree} → ${t.sortie}</span><span class="mono ${+t.r >= 0 ? "pos" : "neg"}">${(+t.r).toFixed(2)} R</span></div>`).join("") : `<div class="empty">Aucun trade clôturé pour l'instant — le bot tourne du lundi au vendredi, 12h–18h (Paris).</div>`;
+}
+
+function renderStatic() {
+  const d = S.data, wf = d.workflows || {}, st = d.statut;
+  $("maj").textContent = "Mis à jour " + new Date(d.genere).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+  const run = (w) => w && w.status !== "completed";
+  let etat = "En pause", led = "", sub = "Hors séance — prochaine séance du lundi au vendredi à 12h (Paris)";
+  if (run(wf.session)) { etat = "En séance"; led = "on"; sub = `Démarré le ${new Date(wf.session.debut).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}` + (st?.maj ? ` · dernière décision ${st.maj}` : ""); }
+  else if (wf.session?.conclusion === "failure") { etat = "Erreur à la dernière séance"; led = "err"; sub = "Voir le journal GitHub Actions"; }
+  if (run(wf.backtest)) { led = led || "bt"; }
+  $("led").className = "led " + led; $("etat").textContent = etat; $("etatS").textContent = sub;
+  const b = d.backtest;
+  $("btS").innerHTML = run(wf.backtest)
+    ? `<span class="badge ok" style="background:rgba(255,138,61,.15);color:var(--orange)">Backtest en cours…</span> depuis ${new Date(wf.backtest.debut).toLocaleTimeString("fr-FR", { timeStyle: "short" })}`
+    : b ? `Dernier backtest : ${b.date} · prochain samedi 9h` : "Aucun backtest hebdo encore — prochain samedi 9h";
+  $("runBt").disabled = run(wf.backtest);
+  $("runBt").textContent = run(wf.backtest) ? "Backtest en cours…" : "Lancer un backtest";
+
+  $("btDate").textContent = b ? "· " + b.date : "";
+  const g = b?.global, w12 = b?.douze_semaines;
+  $("mets").innerHTML = g ? [
+    ["Rendement annuel", pct(g.cagr)], ["12 dernières semaines", pct(w12?.ret || 0)], ["Drawdown max", pct(g.max_dd)],
+    ["Profit factor", g.pf.toFixed(2).replace(".", ",")], ["Sharpe", g.sharpe.toFixed(2).replace(".", ",")], ["Trades", g.trades.toLocaleString("fr-FR")],
+  ].map(([k, v]) => `<div class="met"><small>${k}</small><div>${v}</div></div>`).join("") : `<div class="empty">Le premier backtest hebdomadaire n'a pas encore tourné.</div>`;
+
+  const v = d.validation;
+  if (v) {
+    $("valB").innerHTML = `<span class="badge ${v.valide ? "ok" : "ko"}">${v.valide ? "validé" : "non validé"}</span>`;
+    const ya = Object.entries(v.hors_echantillon?.par_annee || {}), m = Math.max(1e-9, ...ya.map(([, x]) => Math.abs(x.ret)));
+    $("yrs").innerHTML = ya.map(([y, x]) => {
+      const h = (Math.abs(x.ret) / m) * 50;
+      return `<div><div class="h"><span style="height:${h}%;background:${x.ret >= 0 ? "var(--green)" : "var(--red)"};${x.ret >= 0 ? "margin-bottom:0;transform:translateY(-50%)" : "transform:translateY(50%)"}" title="${pct(x.ret)}"></span></div>${y}<b style="color:var(--txt)">${pct(x.ret, 0)}</b></div>`;
+    }).join("");
+    const o = v.hors_echantillon || {};
+    $("valS").textContent = `Profit factor ${(+o.pf || 0).toFixed(2)} (min ${v.criteres?.pf_min}) · drawdown ${pct(o.max_dd || 0)} (max −${(v.criteres?.max_dd_max || 0) * 100} %) · ${o.trades} trades. Le bot tourne en démo uniquement.`;
+  }
+}
+
+async function load(first) {
+  try {
+    const r = await fetch("/api/data", { cache: "no-store" });
+    S.data = await r.json();
+  } catch { $("maj").textContent = "Données indisponibles"; return; }
+  if (first && !S.data.equity.length) { S.mode = "bt"; syncTog(); S.period = 0; syncPills(); }
+  renderStatic(); render();
+}
+
+function reload() {
+  const g = $("grid"); g.classList.add("reload");
+  setTimeout(() => { render(); g.classList.remove("reload"); }, 260);
+}
+const syncPills = () => document.querySelectorAll("#pills button").forEach((b) => b.classList.toggle("on", +b.dataset.p === S.period));
+const syncTog = () => document.querySelectorAll("#tog button").forEach((b) => b.classList.toggle("on", b.dataset.m === S.mode));
+$("pills").onclick = (e) => { const b = e.target.closest("button"); if (!b || !S.data) return; S.period = +b.dataset.p; syncPills(); reload(); };
+$("tog").onclick = (e) => { const b = e.target.closest("button"); if (!b || !S.data) return; S.mode = b.dataset.m; syncTog(); reload(); };
+$("runBt").onclick = () => { $("dlgMsg").textContent = ""; $("pwd").value = ""; $("dlg").showModal(); };
+$("cancel").onclick = () => $("dlg").close();
+$("go").onclick = async () => {
+  $("go").disabled = true; $("dlgMsg").textContent = "Envoi…";
+  try {
+    const r = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: $("pwd").value }) });
+    const j = await r.json();
+    if (j.ok) { $("dlgMsg").textContent = "Backtest lancé ✔ (résultats dans ~15 min)"; setTimeout(() => { $("dlg").close(); load(); }, 1500); }
+    else $("dlgMsg").textContent = j.erreur || "Échec";
+  } catch { $("dlgMsg").textContent = "Erreur réseau"; }
+  $("go").disabled = false;
+};
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => S.data && drawStream(cut(series())), 200); });
+load(true);
+setInterval(load, 60000);
+</script>
+</body>
+</html>

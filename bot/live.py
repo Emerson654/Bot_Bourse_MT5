@@ -186,12 +186,15 @@ class Live:
     # ------------------------------------------------------------------ statut et journal
     def status(self, state: str) -> None:
         pos = []
+        acc = self.api.account_info()
         for p in self.bot_positions():
             rm = self.risk_money(p)
             pos.append({"actif": p.symbol, "sens": "achat" if p.type == self.api.POSITION_TYPE_BUY else "vente",
-                        "entree": p.price_open, "sl": p.sl, "tp": p.tp, "r_latent": round(p.profit / rm, 2) if rm else 0.0})
+                        "entree": p.price_open, "sl": p.sl, "tp": p.tp, "r_latent": round(p.profit / rm, 2) if rm else 0.0,
+                        "risque_pct": round(rm / acc.equity * 100, 2) if acc.equity else 0.0})
+        se = getattr(self, "start_eq", 0.0)
         st = {"etat": state, "maj": now_str(), "positions": pos, "trades_du_jour": self.closed[-30:],
-              "actifs": sorted(self.params)}
+              "actifs": sorted(self.params), "perf_jour_pct": round((acc.equity - se) / se * 100, 3) if se else 0.0}
         with open("status_site/status.json", "w", encoding="utf-8") as fh:
             json.dump(st, fh, ensure_ascii=False, indent=1)
         if self.publish:
@@ -209,6 +212,25 @@ class Live:
                 w.writeheader()
             w.writerows(self.closed)
 
+    def save_equity(self, start_eq: float, path: str = "journal/equity.csv") -> None:
+        """Courbe de performance en INDICE (1 = premier jour), sans aucun montant : le dépôt est public."""
+        acc = self.api.account_info()
+        day = (acc.equity - start_eq) / start_eq if start_eq else 0.0
+        prev = 1.0
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as fh:
+                rows = list(csv.DictReader(fh))
+            if rows:
+                prev = float(rows[-1]["indice"])
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        new = not os.path.exists(path)
+        with open(path, "a", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            if new:
+                w.writerow(["date", "indice", "jour_pct", "positions"])
+            w.writerow([datetime.now(session.PARIS).strftime("%Y-%m-%d"), round(prev * (1 + day), 6),
+                        round(day * 100, 3), len(self.bot_positions())])
+
     def summary(self, start_eq: float) -> None:
         acc = self.api.account_info()
         day = (acc.equity - start_eq) / start_eq if start_eq else 0.0
@@ -222,7 +244,7 @@ class Live:
     # ------------------------------------------------------------------ boucle
     def run(self) -> None:
         job_start = datetime.now(UTC)
-        start_eq = self.start_equity()
+        start_eq = self.start_eq = self.start_equity()
         for sym in self.params:
             self.api.symbol_select(sym, True)
             ex.check_all_positions(self.api, sym)
@@ -235,6 +257,7 @@ class Live:
                 self.detect_closures()
                 self.status("arrêté (fin de session, positions gardées avec SL/TP)")
                 self.summary(start_eq)
+                self.save_equity(start_eq)
                 return
             self.detect_closures()
             if 12 <= p.hour <= 17 and p.hour not in done_hours and p.minute < 30:

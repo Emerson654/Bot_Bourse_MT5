@@ -177,6 +177,7 @@ dialog .acts button{flex:1}
     <div class="card wide">
       <h3>Dernier backtest hebdomadaire <span id="btDate" class="s" style="margin:0"></span></h3>
       <div class="mets" id="mets"></div>
+      <div class="s" style="margin-top:12px">⚠️ Rejoue le bot sur les mêmes années que celles qui ont servi à le choisir : résultat optimiste. La vraie mesure est la validation hors échantillon (carte suivante).</div>
     </div>
 
     <div class="card wide">
@@ -303,7 +304,7 @@ function drawGauge() {
 
 function render() {
   const d = S.data, all = series(), pts = cut(all), bt = S.mode === "bt";
-  $("heroT").textContent = bt ? "Capital simulé (dernier backtest)" : "Capital du compte démo (indice × capital de départ)";
+  $("heroT").textContent = bt ? "Capital simulé — backtest sur les données d'entraînement (optimiste)" : "Capital du compte démo (indice × capital de départ)";
   const last = pts.length ? pts[pts.length - 1][1] : 1, first = pts.length ? pts[0][1] : 1, r = last / first - 1;
   count($("cap"), last * d.capital, fmtEur, "cap" + S.mode);
   $("capD").textContent = pct(r); $("capD").className = "chip" + (r < 0 ? " neg" : "");

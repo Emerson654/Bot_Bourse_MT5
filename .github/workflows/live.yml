@@ -1,11 +1,13 @@
 name: Session live (démo) - spécialistes
 
-# 11h55 heure de Paris, du lundi au vendredi. Le cron GitHub est en UTC : une ligne pour l'heure
-# d'été (UTC+2), une pour l'heure d'hiver (UTC+1) ; la mauvaise s'arrête aussitôt.
+# Séance 12h-18h heure de Paris, du lundi au vendredi. Les crons GitHub partent souvent avec
+# plusieurs heures de retard : on en programme un toutes les 30 min (en UTC) et le contrôle
+# ci-dessous ne lance la séance qu'entre 11h30 et 17h15 (Paris, heure d'été/hiver gérée).
+# Si une séance tourne déjà, le groupe « live » met le suivant en file ; il démarrera après 17h50
+# et s'arrêtera donc aussitôt.
 on:
   schedule:
-    - cron: "55 9 * * 1-5"
-    - cron: "55 10 * * 1-5"
+    - cron: "25,55 9-15 * * 1-5"
   workflow_dispatch:
 
 permissions:
@@ -20,33 +22,31 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 358
     steps:
-      - name: Bon créneau (été/hiver) ?
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dépendances
+        # tzdata : Windows n'a pas la base des fuseaux horaires que zoneinfo utilise
+        run: pip install tzdata numpy MetaTrader5 xlrd
+      - name: Dans la plage de séance ?
         id: gate
         shell: python
         env:
-          SCHEDULE: ${{ github.event.schedule }}
+          EVENT: ${{ github.event_name }}
         run: |
           import os
           from datetime import datetime
           from zoneinfo import ZoneInfo
-          off = datetime.now(ZoneInfo("Europe/Paris")).utcoffset().total_seconds() / 3600
-          s = os.environ.get("SCHEDULE", "")
-          ok = not s or (s.startswith("55 9 ") and off == 2) or (s.startswith("55 10 ") and off == 1)
+          now = datetime.now(ZoneInfo("Europe/Paris"))
+          m = now.hour * 60 + now.minute
+          ok = os.environ["EVENT"] == "workflow_dispatch" or (now.weekday() < 5 and 11 * 60 + 30 <= m <= 17 * 60 + 15)
           open(os.environ["GITHUB_OUTPUT"], "a").write(f"run={'true' if ok else 'false'}\n")
-          print("session lancée" if ok else "mauvais créneau horaire : arrêt")
-      - uses: actions/checkout@v4
-        if: steps.gate.outputs.run == 'true'
-      - uses: actions/setup-python@v5
-        if: steps.gate.outputs.run == 'true'
-        with:
-          python-version: "3.12"
+          print(f"{now:%H:%M} Paris : " + ("séance lancée" if ok else "hors plage : arrêt"))
       - name: Installation de MetaTrader 5
         if: steps.gate.outputs.run == 'true'
         shell: pwsh
         run: ./scripts/install_mt5.ps1
-      - name: Dépendances
-        if: steps.gate.outputs.run == 'true'
-        run: pip install numpy MetaTrader5 xlrd
       - name: Actu et macro du jour (GPR, EPU, FRED)
         if: steps.gate.outputs.run == 'true'
         continue-on-error: true

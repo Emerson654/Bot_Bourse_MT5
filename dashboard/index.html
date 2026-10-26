@@ -221,7 +221,8 @@ function count(el, to, fmt, key) {
 // Série « indice de capital » selon le mode : démo (journal réel) ou backtest (dernier backtest hebdo).
 function series() {
   const d = S.data;
-  if (S.mode === "demo" && d.equity.length) return d.equity.map((r) => [day(String(r.date)), +r.indice]);
+  // démo : uniquement le vrai journal du compte (jamais la courbe du backtest)
+  if (S.mode === "demo") return d.equity.map((r) => [day(String(r.date)), +r.indice]);
   if (d.backtest?.courbe?.length) return d.backtest.courbe.map(([t, v]) => [day(t), v]);
   return [];
 }
@@ -242,7 +243,7 @@ function tradesInPeriod() {
 function drawStream(pts) {
   const svg = $("stream"), W = svg.clientWidth || 600, H = svg.clientHeight || 230;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  if (pts.length < 2) { svg.innerHTML = `<text x="12" y="30" fill="#e6e2ff" font-size="13">Pas encore de données sur cette période</text>`; return; }
+  if (pts.length < 2) { svg.innerHTML = `<text x="12" y="30" fill="#e6e2ff" font-size="13">${S.mode === "demo" ? "Pas encore de séance terminée — la courbe démarre après la 1re séance" : "Pas encore de données sur cette période"}</text>`; return; }
   const v = pts.map((p) => p[1]), lo = Math.min(...v), hi = Math.max(...v), span = hi - lo || 1;
   const x = (i) => (i / (pts.length - 1)) * W, y = (val) => H * 0.12 + (1 - (val - lo) / span) * H * 0.55;
   const smooth = (ys) => ys.map((yy, i) => (i ? `L${x(i).toFixed(1)},${yy.toFixed(1)}` : `M0,${yy.toFixed(1)}`)).join("");
@@ -308,7 +309,7 @@ function render() {
   const last = pts.length ? pts[pts.length - 1][1] : 1, first = pts.length ? pts[0][1] : 1, r = last / first - 1;
   count($("cap"), last * d.capital, fmtEur, "cap" + S.mode);
   $("capD").textContent = pct(r); $("capD").className = "chip" + (r < 0 ? " neg" : "");
-  $("capS").textContent = pts.length ? `depuis le ${fr(pts[0][0])}` : (bt ? "aucun backtest hebdo pour l'instant" : "le journal démarre à la 1re séance");
+  $("capS").textContent = pts.length ? `depuis le ${fr(pts[0][0])}` : (bt ? "aucun backtest hebdo pour l'instant" : "aucune séance terminée : le compte démo démarre à 100 000 €");
   requestAnimationFrame(() => drawStream(pts));
 
   count($("ret"), r * 100, (v) => (v >= 0 ? "+" : "") + v.toFixed(2).replace(".", ",") + " %", "ret" + S.mode + S.period);
@@ -400,7 +401,6 @@ async function load(first) {
     const r = await fetch("/api/data", { cache: "no-store" });
     S.data = await r.json();
   } catch { $("maj").textContent = "Données indisponibles"; return; }
-  if (first && !S.data.equity.length) { S.mode = "bt"; syncTog(); S.period = 0; syncPills(); }
   renderStatic(); render();
 }
 

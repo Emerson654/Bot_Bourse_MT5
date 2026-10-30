@@ -1,0 +1,13 @@
+{
+ "etat": "arrêté (fin de session, positions gardées avec SL/TP)",
+ "maj": "2026-10-30 17:50",
+ "positions": [],
+ "trades_du_jour": [],
+ "actifs": [
+  "EURUSD",
+  "USDJPY",
+  "XAGUSD",
+  "XAUUSD"
+ ],
+ "perf_jour_pct": 0.0
+}

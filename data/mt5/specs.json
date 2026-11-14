@@ -13,7 +13,7 @@
   "spread_median_pts": 4,
   "currency_profit": "USD",
   "first": "2008-01-02",
-  "bars": 110202
+  "bars": 110422
  },
  "XAGUSD": {
   "point": 0.001,
@@ -29,7 +29,7 @@
   "spread_median_pts": 20,
   "currency_profit": "USD",
   "first": "2008-11-07",
-  "bars": 105505
+  "bars": 105725
  },
  "EURUSD": {
   "point": 1e-05,
@@ -45,7 +45,7 @@
   "spread_median_pts": 0,
   "currency_profit": "USD",
   "first": "2008-01-02",
-  "bars": 116765
+  "bars": 117005
  },
  "GBPUSD": {
   "point": 1e-05,
@@ -77,7 +77,7 @@
   "spread_median_pts": 0,
   "currency_profit": "JPY",
   "first": "2008-01-02",
-  "bars": 116745
+  "bars": 116985
  },
  "AUDUSD": {
   "point": 1e-05,
